@@ -160,8 +160,8 @@ async def async_setup_entry(
         hass.data[DOMAIN] = {}
 
     hass.data[DOMAIN][COORDINATOR] = coordinator
-    hass.data[DOMAIN][COORDINATOR_MEDIA] = coordinator
-    hass.data[DOMAIN][COORDINATOR_BLUETOOTH] = coordinator
+    hass.data[DOMAIN][COORDINATOR_MEDIA] = coordinator_media
+    hass.data[DOMAIN][COORDINATOR_BLUETOOTH] = coordinator_bluetooth
     hass.data[DOMAIN][COORDINATOR_LOCAL_BLE] = coordinator_local_ble
 
     return True
