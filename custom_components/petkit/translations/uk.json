@@ -265,19 +265,19 @@
       "working_mode": {
         "name": "Режим роботи",
         "state": {
-          "Normal": "Нормальний",
-          "Smart": "Розумний",
-          "Standard": "Стандартний",
-          "Intermittent": "Переривчастий",
-          "Battery": "Акумулятор"
+          "normal": "Нормальний",
+          "smart": "Розумний",
+          "standard": "Стандартний",
+          "intermittent": "Переривчастий",
+          "battery": "Акумулятор"
         }
       },
       "led_brightness": {
         "name": "Яскравість LED",
         "state": {
-          "Low": "Низька",
-          "Normal": "Нормальна",
-          "High": "Висока"
+          "low": "Низька",
+          "normal": "Нормальна",
+          "high": "Висока"
         }
       },
       "move_detection_sensitivity": {

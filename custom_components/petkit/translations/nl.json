@@ -265,19 +265,19 @@
       "working_mode": {
         "name": "Werkingsmodus",
         "state": {
-          "Normal": "Normaal",
-          "Smart": "Slim",
-          "Standard": "Standaard",
-          "Intermittent": "Intermitterend",
-          "Battery": "Batterij"
+          "normal": "Normaal",
+          "smart": "Slim",
+          "standard": "Standaard",
+          "intermittent": "Intermitterend",
+          "battery": "Batterij"
         }
       },
       "led_brightness": {
         "name": "LED-helderheid",
         "state": {
-          "Low": "Laag",
-          "Normal": "Normaal",
-          "High": "Hoog"
+          "low": "Laag",
+          "normal": "Normaal",
+          "high": "Hoog"
         }
       },
       "move_detection_sensitivity": {
