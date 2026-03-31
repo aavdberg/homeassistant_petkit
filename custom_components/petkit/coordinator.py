@@ -323,3 +323,94 @@ class PetkitBluetoothUpdateCoordinator(DataUpdateCoordinator):
             return True
         LOGGER.debug(f"Bluetooth connection for device id = {device_id} failed")
         return False
+
+
+class PetkitLocalBleCoordinator(DataUpdateCoordinator):
+    """Coordinator for direct (local) BLE communication with PetKit fountains.
+
+    Polls each configured fountain over direct Bluetooth at a fixed interval.
+    Updates the WaterFountain entity data in the main data coordinator so that
+    existing entities automatically reflect BLE-sourced state without needing
+    separate BLE-specific entities.
+    """
+
+    def __init__(
+        self,
+        hass,
+        logger,
+        name,
+        update_interval,
+        config_entry,
+        data_coordinator: "PetkitDataUpdateCoordinator",
+    ):
+        """Initialize the local BLE coordinator."""
+        from datetime import timedelta
+
+        super().__init__(
+            hass,
+            logger,
+            name=name,
+            update_interval=update_interval,
+            config_entry=config_entry,
+        )
+        self.config = config_entry
+        self.data_coordinator = data_coordinator
+
+    async def _async_update_data(self) -> dict[str, Any]:
+        """Poll all configured local BLE fountains and update entity data."""
+        from .const import (
+            CONF_LOCAL_BLE_ENABLED,
+            CONF_LOCAL_BLE_FOUNTAINS,
+            DEFAULT_LOCAL_BLE_ENABLED,
+            LOCAL_BLE_SECTION,
+        )
+        from .fountain_ble import FountainBleClient
+        from pypetkitapi import LocalFountainBleProtocol, WaterFountain
+
+        ble_section = self.config.options.get(LOCAL_BLE_SECTION, {})
+        if not ble_section.get(CONF_LOCAL_BLE_ENABLED, DEFAULT_LOCAL_BLE_ENABLED):
+            LOGGER.debug("Local BLE is disabled by configuration")
+            return {}
+
+        fountains: list[dict] = ble_section.get(CONF_LOCAL_BLE_FOUNTAINS, [])
+        results: dict[str, Any] = {}
+
+        for fountain_cfg in fountains:
+            mac: str = fountain_cfg.get("mac", "")
+            name: str = fountain_cfg.get("name", mac)
+            if not mac:
+                continue
+            try:
+                client = FountainBleClient(self.hass, mac, name)
+                status = await client.async_get_status()
+                if status is None:
+                    LOGGER.warning("No BLE status received from %s (%s)", name, mac)
+                    continue
+
+                # Find matching WaterFountain entity and update its fields
+                for device_id, device in (
+                    self.config.runtime_data.client.petkit_entities.items()
+                ):
+                    if isinstance(device, WaterFountain):
+                        if (
+                            getattr(device, "ble_mac", None) == mac
+                            or getattr(device, "mac", None) == mac
+                        ):
+                            LocalFountainBleProtocol.update_water_fountain(
+                                device, status
+                            )
+                            results[mac] = status
+                            LOGGER.debug(
+                                "Local BLE update applied for %s (%s)", name, mac
+                            )
+                            break
+                else:
+                    # No matched entity — store raw status anyway
+                    results[mac] = status
+
+            except Exception as err:  # noqa: BLE001
+                LOGGER.error(
+                    "Local BLE poll failed for %s (%s): %s", name, mac, err
+                )
+
+        return results

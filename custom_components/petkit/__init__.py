@@ -20,19 +20,25 @@ from homeassistant.loader import async_get_loaded_integration
 
 from .const import (
     BT_SECTION,
+    CONF_LOCAL_BLE_ENABLED,
     CONF_SCAN_INTERVAL_BLUETOOTH,
     CONF_SCAN_INTERVAL_MEDIA,
     COORDINATOR,
     COORDINATOR_BLUETOOTH,
+    COORDINATOR_LOCAL_BLE,
     COORDINATOR_MEDIA,
+    DEFAULT_LOCAL_BLE_ENABLED,
+    DEFAULT_LOCAL_BLE_POLL_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    LOCAL_BLE_SECTION,
     LOGGER,
     MEDIA_SECTION,
 )
 from .coordinator import (
     PetkitBluetoothUpdateCoordinator,
     PetkitDataUpdateCoordinator,
+    PetkitLocalBleCoordinator,
     PetkitMediaUpdateCoordinator,
 )
 from .data import PetkitData
@@ -103,6 +109,21 @@ async def async_setup_entry(
         config_entry=entry,
         data_coordinator=coordinator,
     )
+
+    # Local (direct) BLE coordinator — only created when user has enabled it
+    local_ble_enabled = (
+        entry.options.get(LOCAL_BLE_SECTION, {}).get(
+            CONF_LOCAL_BLE_ENABLED, DEFAULT_LOCAL_BLE_ENABLED
+        )
+    )
+    coordinator_local_ble = PetkitLocalBleCoordinator(
+        hass=hass,
+        logger=LOGGER,
+        name=f"{DOMAIN}.local_ble",
+        update_interval=timedelta(seconds=DEFAULT_LOCAL_BLE_POLL_INTERVAL),
+        config_entry=entry,
+        data_coordinator=coordinator,
+    )
     entry.runtime_data = PetkitData(
         client=PetKitClient(
             username=entry.data[CONF_USERNAME],
@@ -120,6 +141,8 @@ async def async_setup_entry(
     await coordinator.async_config_entry_first_refresh()
     await coordinator_media.async_config_entry_first_refresh()
     await coordinator_bluetooth.async_config_entry_first_refresh()
+    if local_ble_enabled:
+        await coordinator_local_ble.async_config_entry_first_refresh()
 
     # MQTT
 
@@ -141,6 +164,7 @@ async def async_setup_entry(
     hass.data[DOMAIN][COORDINATOR] = coordinator
     hass.data[DOMAIN][COORDINATOR_MEDIA] = coordinator
     hass.data[DOMAIN][COORDINATOR_BLUETOOTH] = coordinator
+    hass.data[DOMAIN][COORDINATOR_LOCAL_BLE] = coordinator_local_ble
 
     return True
 
