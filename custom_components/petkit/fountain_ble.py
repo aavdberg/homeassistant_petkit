@@ -110,13 +110,14 @@ class FountainBleClient:
         try:
             await self._connect()
             await self._run_init_sequence()
-            status = await self._read_full_status()
-            return status
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("BLE status read failed for %s: %s", self.mac_address, err)
-            return None
-        finally:
             await self._disconnect()
+            return None
+        else:
+            status = await self._read_full_status()
+            await self._disconnect()
+            return status
 
     async def async_set_mode(self, power_state: int, mode: int) -> bool:
         """Connect, send a mode change command, disconnect."""
@@ -125,12 +126,13 @@ class FountainBleClient:
             await self._run_init_sequence()
             cmd = self._protocol.build_set_mode_command(power_state, mode)
             await self._write(cmd)
-            return True
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("BLE set_mode failed for %s: %s", self.mac_address, err)
-            return False
-        finally:
             await self._disconnect()
+            return False
+        else:
+            await self._disconnect()
+            return True
 
     async def async_set_config(self, config_data: list[int]) -> bool:
         """Connect, send a config update command, disconnect."""
@@ -139,12 +141,13 @@ class FountainBleClient:
             await self._run_init_sequence()
             cmd = self._protocol.build_set_config_command(config_data)
             await self._write(cmd)
-            return True
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("BLE set_config failed for %s: %s", self.mac_address, err)
-            return False
-        finally:
             await self._disconnect()
+            return False
+        else:
+            await self._disconnect()
+            return True
 
     # -----------------------------------------------------------------------
     # Connection management
