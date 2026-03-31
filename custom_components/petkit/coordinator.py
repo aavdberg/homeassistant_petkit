@@ -388,9 +388,7 @@ class PetkitLocalBleCoordinator(DataUpdateCoordinator):
                     continue
 
                 # Find matching WaterFountain entity and update its fields
-                for device in (
-                    self.config.runtime_data.client.petkit_entities.values()
-                ):
+                for device in self.config.runtime_data.client.petkit_entities.values():
                     if isinstance(device, WaterFountain):
                         if (
                             getattr(device, "ble_mac", None) == mac
