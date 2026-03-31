@@ -112,7 +112,6 @@ MANUAL_FEED_OPT = {
 FOUNTAIN_WORKING_MODE_CTW3 = {
     1: "standard",
     2: "intermittent",
-    3: "battery",
 }
 
 FOUNTAIN_WORKING_MODE = {

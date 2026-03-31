@@ -6,7 +6,6 @@ from datetime import timedelta
 from typing import TYPE_CHECKING
 
 from pypetkitapi import PetKitClient
-from pypetkitapi.command import FOUNTAIN_COMMAND, FountainAction
 
 from homeassistant.const import (
     CONF_PASSWORD,
@@ -62,18 +61,6 @@ PLATFORMS: list[Platform] = [
     Platform.IMAGE,
     Platform.FAN,
 ]
-
-# Extend pypetkitapi's FOUNTAIN_COMMAND with working mode commands.
-# These byte sequences follow the same [cmd, type, length, start_data, state, mode, op_type]
-# format as the existing POWER_ON/OFF entries (cmd 220).
-FOUNTAIN_COMMAND.update(
-    {
-        FountainAction.MODE_NORMAL: [220, 1, 3, 0, 1, 1, 1],
-        FountainAction.MODE_SMART: [220, 1, 3, 0, 1, 2, 1],
-        FountainAction.MODE_STANDARD: [220, 1, 3, 0, 1, 1, 1],
-        FountainAction.MODE_INTERMITTENT: [220, 1, 3, 0, 1, 2, 1],
-    }
-)
 
 
 async def async_setup_entry(
