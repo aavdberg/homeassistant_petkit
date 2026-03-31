@@ -111,10 +111,8 @@ async def async_setup_entry(
     )
 
     # Local (direct) BLE coordinator — only created when user has enabled it
-    local_ble_enabled = (
-        entry.options.get(LOCAL_BLE_SECTION, {}).get(
-            CONF_LOCAL_BLE_ENABLED, DEFAULT_LOCAL_BLE_ENABLED
-        )
+    local_ble_enabled = entry.options.get(LOCAL_BLE_SECTION, {}).get(
+        CONF_LOCAL_BLE_ENABLED, DEFAULT_LOCAL_BLE_ENABLED
     )
     coordinator_local_ble = PetkitLocalBleCoordinator(
         hass=hass,

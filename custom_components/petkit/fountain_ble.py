@@ -21,7 +21,6 @@ from pypetkitapi import (
     BLE_NOTIFY_UUID,
     BLE_WRITE_UUID,
     LocalFountainBleProtocol,
-    WaterFountain,
 )
 
 from homeassistant.components import bluetooth
@@ -57,8 +56,15 @@ def discovered_fountains(hass: HomeAssistant) -> list[BluetoothServiceInfoBleak]
 
 def _alias_from_name(device_name: str) -> str:
     """Derive the device alias (e.g. 'CTW3', 'W5') from the BLE device name."""
-    for prefix in ("Petkit_CTW3", "Petkit_CTW2", "Petkit_W5C", "Petkit_W5N",
-                   "Petkit_W5", "Petkit_W4XUVC", "Petkit_W4X"):
+    for prefix in (
+        "Petkit_CTW3",
+        "Petkit_CTW2",
+        "Petkit_W5C",
+        "Petkit_W5N",
+        "Petkit_W5",
+        "Petkit_W4XUVC",
+        "Petkit_W4X",
+    ):
         if device_name.startswith(prefix):
             return prefix.replace("Petkit_", "")
     return ""
@@ -197,7 +203,9 @@ class FountainBleClient:
         await self._wait_for_notification()
 
         if not self._protocol.device_id_received:
-            _LOGGER.warning("Device ID not received for %s; proceeding anyway", self.mac_address)
+            _LOGGER.warning(
+                "Device ID not received for %s; proceeding anyway", self.mac_address
+            )
 
         # Step 2: Send CMD 73 (auth), CMD 86 (sync), CMD 84 (set time)
         for cmd in self._protocol.complete_init_commands():

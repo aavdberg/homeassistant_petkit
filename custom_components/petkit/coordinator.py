@@ -341,10 +341,9 @@ class PetkitLocalBleCoordinator(DataUpdateCoordinator):
         name,
         update_interval,
         config_entry,
-        data_coordinator: "PetkitDataUpdateCoordinator",
+        data_coordinator: PetkitDataUpdateCoordinator,
     ):
         """Initialize the local BLE coordinator."""
-        from datetime import timedelta
 
         super().__init__(
             hass,
@@ -358,6 +357,8 @@ class PetkitLocalBleCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Poll all configured local BLE fountains and update entity data."""
+        from pypetkitapi import LocalFountainBleProtocol, WaterFountain
+
         from .const import (
             CONF_LOCAL_BLE_ENABLED,
             CONF_LOCAL_BLE_FOUNTAINS,
@@ -365,7 +366,6 @@ class PetkitLocalBleCoordinator(DataUpdateCoordinator):
             LOCAL_BLE_SECTION,
         )
         from .fountain_ble import FountainBleClient
-        from pypetkitapi import LocalFountainBleProtocol, WaterFountain
 
         ble_section = self.config.options.get(LOCAL_BLE_SECTION, {})
         if not ble_section.get(CONF_LOCAL_BLE_ENABLED, DEFAULT_LOCAL_BLE_ENABLED):
@@ -388,9 +388,10 @@ class PetkitLocalBleCoordinator(DataUpdateCoordinator):
                     continue
 
                 # Find matching WaterFountain entity and update its fields
-                for device_id, device in (
-                    self.config.runtime_data.client.petkit_entities.items()
-                ):
+                for (
+                    device_id,
+                    device,
+                ) in self.config.runtime_data.client.petkit_entities.items():
                     if isinstance(device, WaterFountain):
                         if (
                             getattr(device, "ble_mac", None) == mac
@@ -409,8 +410,6 @@ class PetkitLocalBleCoordinator(DataUpdateCoordinator):
                     results[mac] = status
 
             except Exception as err:  # noqa: BLE001
-                LOGGER.error(
-                    "Local BLE poll failed for %s (%s): %s", name, mac, err
-                )
+                LOGGER.error("Local BLE poll failed for %s (%s): %s", name, mac, err)
 
         return results
