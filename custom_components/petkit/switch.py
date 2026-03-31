@@ -834,6 +834,30 @@ SWITCH_MAPPING: dict[type[PetkitDevices], list[PetKitSwitchDesc]] = {
     WaterFountain: [
         *COMMON_ENTITIES,
         PetKitSwitchDesc(
+            key="Indicator light",
+            translation_key="indicator_light",
+            value=lambda device: device.settings.lamp_ring_switch,
+            entity_category=EntityCategory.CONFIG,
+            turn_on=lambda api, device: api.send_api_request(
+                device.id, DeviceCommand.UPDATE_SETTING, {"lampRingSwitch": 1}
+            ),
+            turn_off=lambda api, device: api.send_api_request(
+                device.id, DeviceCommand.UPDATE_SETTING, {"lampRingSwitch": 0}
+            ),
+        ),
+        PetKitSwitchDesc(
+            key="Do not disturb",
+            translation_key="do_not_disturb",
+            value=lambda device: device.settings.no_disturbing_switch,
+            entity_category=EntityCategory.CONFIG,
+            turn_on=lambda api, device: api.send_api_request(
+                device.id, DeviceCommand.UPDATE_SETTING, {"noDisturbingSwitch": 1}
+            ),
+            turn_off=lambda api, device: api.send_api_request(
+                device.id, DeviceCommand.UPDATE_SETTING, {"noDisturbingSwitch": 0}
+            ),
+        ),
+        PetKitSwitchDesc(
             key="Power",
             translation_key="power",
             value=lambda device: (
