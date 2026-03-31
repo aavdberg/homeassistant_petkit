@@ -836,9 +836,9 @@ SWITCH_MAPPING: dict[type[PetkitDevices], list[PetKitSwitchDesc]] = {
     WaterFountain: [
         *COMMON_ENTITIES,
         PetKitSwitchDesc(
-        key=INDICATOR_LIGHT,
-        translation_key="indicator_light",
-        value=lambda device: device.settings.lamp_ring_switch,
+            key=INDICATOR_LIGHT,
+            translation_key="indicator_light",
+            value=lambda device: device.settings.lamp_ring_switch,
             entity_category=EntityCategory.CONFIG,
             turn_on=lambda api, device: api.send_api_request(
                 device.id, DeviceCommand.UPDATE_SETTING, {"lampRingSwitch": 1}
