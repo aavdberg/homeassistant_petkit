@@ -22,7 +22,7 @@ import asyncio
 from datetime import datetime, timezone
 import logging
 import logging.handlers
-import os
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components import bluetooth
@@ -49,7 +49,7 @@ def _setup_ble_log_file(config_dir: str, *, debug_enabled: bool = False) -> None
     DEBUG-level messages are included; otherwise only INFO and above are written.
     """
     global _FILE_HANDLER_ATTACHED  # noqa: PLW0603
-    log_path = os.path.join(config_dir, "petkit.log")
+    log_path = Path(config_dir) / "petkit.log"
 
     if not _FILE_HANDLER_ATTACHED:
         handler = logging.handlers.RotatingFileHandler(
@@ -190,12 +190,8 @@ class LocalFountainBleProtocol:
             bytes(device_id_padded).hex(),
             bytes(self._secret).hex(),
         )
-        cmds.append(
-            self._build_frame(
-                self._CMD_AUTH, 1, [0, 0] + device_id_padded + self._secret
-            )
-        )
-        cmds.append(self._build_frame(self._CMD_SYNC, 1, [0, 0] + self._secret))
+        cmds.append(self._build_frame(self._CMD_AUTH, 1, [0, 0, *device_id_padded, *self._secret]))
+        cmds.append(self._build_frame(self._CMD_SYNC, 1, [0, 0, *self._secret]))
 
         cmds.append(self._build_frame(self._CMD_SET_TIME, 1, self._time_bytes()))
         return cmds
@@ -374,12 +370,7 @@ class LocalFountainBleProtocol:
 
     def _build_frame(self, cmd: int, type_: int, data: list[int]) -> bytearray:
         """Build a BLE command frame and advance the sequence counter."""
-        frame = (
-            self._FRAME_START
-            + [cmd, type_, self._seq, len(data), 0]
-            + data
-            + self._FRAME_END
-        )
+        frame = [*self._FRAME_START, cmd, type_, self._seq, len(data), 0, *data, *self._FRAME_END]
         self._seq = (self._seq + 1) & 0xFF
         return bytearray(frame)
 
