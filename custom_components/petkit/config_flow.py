@@ -40,6 +40,7 @@ from .const import (
     CODE_TO_COUNTRY_DICT,
     CONF_BLE_RELAY_ENABLED,
     CONF_DELETE_AFTER,
+    CONF_LOCAL_BLE_DEBUG,
     CONF_LOCAL_BLE_ENABLED,
     CONF_LOCAL_BLE_FOUNTAINS,
     CONF_MEDIA_DL_IMAGE,
@@ -54,6 +55,7 @@ from .const import (
     DEFAULT_DL_IMAGE,
     DEFAULT_DL_VIDEO,
     DEFAULT_EVENTS,
+    DEFAULT_LOCAL_BLE_DEBUG,
     DEFAULT_LOCAL_BLE_ENABLED,
     DEFAULT_MEDIA_PATH,
     DEFAULT_SCAN_INTERVAL_BLUETOOTH,
@@ -182,6 +184,15 @@ class PetkitOptionsFlowHandler(OptionsFlow):
                                         LOCAL_BLE_SECTION, {}
                                     ).get(CONF_LOCAL_BLE_FOUNTAINS, []),
                                 ): selector.ObjectSelector(),
+                                vol.Required(
+                                    CONF_LOCAL_BLE_DEBUG,
+                                    default=self.config_entry.options.get(
+                                        LOCAL_BLE_SECTION, {}
+                                    ).get(
+                                        CONF_LOCAL_BLE_DEBUG,
+                                        DEFAULT_LOCAL_BLE_DEBUG,
+                                    ),
+                                ): BooleanSelector(BooleanSelectorConfig()),
                             }
                         ),
                         {"collapsed": True},
@@ -269,6 +280,7 @@ class PetkitFlowHandler(ConfigFlow, domain=DOMAIN):
                             LOCAL_BLE_SECTION: {
                                 CONF_LOCAL_BLE_ENABLED: DEFAULT_LOCAL_BLE_ENABLED,
                                 CONF_LOCAL_BLE_FOUNTAINS: [],
+                                CONF_LOCAL_BLE_DEBUG: DEFAULT_LOCAL_BLE_DEBUG,
                             },
                         },
                     )

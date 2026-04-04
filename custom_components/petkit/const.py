@@ -26,7 +26,9 @@ COORDINATOR_LOCAL_BLE = "coordinator_local_ble"
 LOCAL_BLE_SECTION = "local_ble_options"
 CONF_LOCAL_BLE_ENABLED = "local_ble_enabled"
 CONF_LOCAL_BLE_FOUNTAINS = "local_ble_fountains"  # list of {name, mac} dicts
+CONF_LOCAL_BLE_DEBUG = "local_ble_debug_log"
 DEFAULT_LOCAL_BLE_ENABLED = False
+DEFAULT_LOCAL_BLE_DEBUG = False
 DEFAULT_LOCAL_BLE_POLL_INTERVAL = 60
 
 MEDIA_SECTION = "medias_options"

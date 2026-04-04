@@ -357,21 +357,24 @@ class PetkitLocalBleCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Poll all configured local BLE fountains and update entity data."""
-        from pypetkitapi import LocalFountainBleProtocol, WaterFountain
+        from pypetkitapi import WaterFountain
 
         from .const import (
+            CONF_LOCAL_BLE_DEBUG,
             CONF_LOCAL_BLE_ENABLED,
             CONF_LOCAL_BLE_FOUNTAINS,
+            DEFAULT_LOCAL_BLE_DEBUG,
             DEFAULT_LOCAL_BLE_ENABLED,
             LOCAL_BLE_SECTION,
         )
-        from .fountain_ble import FountainBleClient
+        from .fountain_ble import FountainBleClient, LocalFountainBleProtocol
 
         ble_section = self.config.options.get(LOCAL_BLE_SECTION, {})
         if not ble_section.get(CONF_LOCAL_BLE_ENABLED, DEFAULT_LOCAL_BLE_ENABLED):
             LOGGER.debug("Local BLE is disabled by configuration")
             return {}
 
+        debug_log: bool = ble_section.get(CONF_LOCAL_BLE_DEBUG, DEFAULT_LOCAL_BLE_DEBUG)
         fountains: list[dict] = ble_section.get(CONF_LOCAL_BLE_FOUNTAINS, [])
         results: dict[str, Any] = {}
 
@@ -381,7 +384,7 @@ class PetkitLocalBleCoordinator(DataUpdateCoordinator):
             if not mac:
                 continue
             try:
-                client = FountainBleClient(self.hass, mac, name)
+                client = FountainBleClient(self.hass, mac, name, debug_log=debug_log)
                 status = await client.async_get_status()
                 if status is None:
                     LOGGER.warning("No BLE status received from %s (%s)", name, mac)
