@@ -19,10 +19,10 @@ created the first time a ``FountainBleClient`` is instantiated.
 from __future__ import annotations
 
 import asyncio
+from datetime import datetime, timezone
 import logging
 import logging.handlers
 import os
-from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components import bluetooth
@@ -71,6 +71,7 @@ def _setup_ble_log_file(config_dir: str, *, debug_enabled: bool = False) -> None
         if isinstance(h, logging.handlers.RotatingFileHandler):
             h.setLevel(level)
 
+
 # BLE GATT characteristic UUIDs for PetKit fountains
 BLE_NOTIFY_UUID = "0000aaa1-0000-1000-8000-00805f9b34fb"
 BLE_WRITE_UUID = "0000aaa2-0000-1000-8000-00805f9b34fb"
@@ -114,13 +115,15 @@ class LocalFountainBleProtocol:
     _CMD_AUTH: int = 73
     _CMD_SYNC: int = 86
     _CMD_SET_TIME: int = 84
-    _CMD_STATE: int = 210    # device state  (CTW3 26-byte payload)
+    _CMD_STATE: int = 210  # device state  (CTW3 26-byte payload)
     _CMD_CONFIG_READ: int = 211  # device config (CTW3 10-byte payload)
-    _CMD_STATUS: int = 230   # combined state+config (type=2 request)
+    _CMD_STATUS: int = 230  # combined state+config (type=2 request)
     _CMD_MODE: int = 220
     _CMD_CONFIG: int = 221
 
-    def __init__(self, alias: str, mac_bytes: list[int] | None = None) -> None:  # noqa: ARG002
+    def __init__(
+        self, alias: str, mac_bytes: list[int] | None = None
+    ) -> None:
         """Initialise for the given device alias (e.g. 'CTW3', 'W5').
 
         The CTW3 / Eversweet Max 2 uses an all-zero device ID with the magic
@@ -172,7 +175,7 @@ class LocalFountainBleProtocol:
         if self._alias == "CTW3":
             device_id = [0] * 6
         else:
-            device_id = self._device_id_bytes if self._device_id_bytes else [0] * 6
+            device_id = self._device_id_bytes or [0] * 6
 
         device_id_padded = [0] * (8 - len(device_id)) + device_id
         secret = list(reversed(device_id))
@@ -187,7 +190,11 @@ class LocalFountainBleProtocol:
             bytes(device_id_padded).hex(),
             bytes(self._secret).hex(),
         )
-        cmds.append(self._build_frame(self._CMD_AUTH, 1, [0, 0] + device_id_padded + self._secret))
+        cmds.append(
+            self._build_frame(
+                self._CMD_AUTH, 1, [0, 0] + device_id_padded + self._secret
+            )
+        )
         cmds.append(self._build_frame(self._CMD_SYNC, 1, [0, 0] + self._secret))
 
         cmds.append(self._build_frame(self._CMD_SET_TIME, 1, self._time_bytes()))
@@ -260,7 +267,9 @@ class LocalFountainBleProtocol:
         self._recv_buffer = bytearray()
 
         if len(frame) < 9:
-            _LOGGER.warning("BLE frame too short (%d bytes): %s", len(frame), frame.hex())
+            _LOGGER.warning(
+                "BLE frame too short (%d bytes): %s", len(frame), frame.hex()
+            )
             return None
 
         # Frame layout: [FA, FC, FD, cmd, type, seq, data_len, 0x00, ...payload, FB]
@@ -302,7 +311,7 @@ class LocalFountainBleProtocol:
     @staticmethod
     def update_water_fountain(device: Any, status: dict[str, Any]) -> None:
         """Apply a BLE status dict to a WaterFountain Pydantic model instance."""
-        from pypetkitapi.water_fountain_container import Electricity, Status  # noqa: PLC0415
+        from pypetkitapi.water_fountain_container import Electricity, Status
 
         # Ensure sub-models exist
         if device.status is None:
@@ -365,7 +374,12 @@ class LocalFountainBleProtocol:
 
     def _build_frame(self, cmd: int, type_: int, data: list[int]) -> bytearray:
         """Build a BLE command frame and advance the sequence counter."""
-        frame = self._FRAME_START + [cmd, type_, self._seq, len(data), 0] + data + self._FRAME_END
+        frame = (
+            self._FRAME_START
+            + [cmd, type_, self._seq, len(data), 0]
+            + data
+            + self._FRAME_END
+        )
         self._seq = (self._seq + 1) & 0xFF
         return bytearray(frame)
 
@@ -382,7 +396,11 @@ class LocalFountainBleProtocol:
             _LOGGER.debug(
                 "CMD 213 device ID bytes: %s%s",
                 bytes(self._device_id_bytes).hex(),
-                " (all zeros — CTW3 uses zero-based auth)" if not any(self._device_id_bytes) else "",
+                (
+                    " (all zeros — CTW3 uses zero-based auth)"
+                    if not any(self._device_id_bytes)
+                    else ""
+                ),
             )
             self._device_id_received = True
 
@@ -432,18 +450,18 @@ class LocalFountainBleProtocol:
             return None
 
         result: dict[str, Any] = {
-            "power_status":        payload[0],
-            "suspend_status":      payload[1],
-            "mode":                payload[2],
-            "electric_status":     payload[3],
-            "dnd_state":           payload[4],
-            "warning_breakdown":   payload[5],
+            "power_status": payload[0],
+            "suspend_status": payload[1],
+            "mode": payload[2],
+            "electric_status": payload[3],
+            "dnd_state": payload[4],
+            "warning_breakdown": payload[5],
             "warning_water_missing": payload[6],
-            "low_battery":         payload[7],
-            "warning_filter":      payload[8],
-            "pump_runtime":        int.from_bytes(payload[9:13], "big"),
-            "filter_percentage":   payload[13],
-            "running_status":      payload[14],
+            "low_battery": payload[7],
+            "warning_filter": payload[8],
+            "pump_runtime": int.from_bytes(payload[9:13], "big"),
+            "filter_percentage": payload[13],
+            "running_status": payload[14],
         }
 
         if len(payload) >= 19:
@@ -451,9 +469,13 @@ class LocalFountainBleProtocol:
         if len(payload) >= 20:
             result["detect_status"] = payload[19]
         if len(payload) >= 22:
-            result["supply_voltage"] = int.from_bytes(payload[20:22], "big", signed=True)
+            result["supply_voltage"] = int.from_bytes(
+                payload[20:22], "big", signed=True
+            )
         if len(payload) >= 24:
-            result["battery_voltage"] = int.from_bytes(payload[22:24], "big", signed=True)
+            result["battery_voltage"] = int.from_bytes(
+                payload[22:24], "big", signed=True
+            )
         if len(payload) >= 25:
             result["battery_percentage"] = payload[24]
         if len(payload) >= 26:
@@ -518,7 +540,6 @@ class LocalFountainBleProtocol:
             seconds & 0xFF,
             13,  # protocol flag byte
         ]
-
 
 
 BLE_NOTIFY_TIMEOUT = 10.0
@@ -630,7 +651,8 @@ class FountainBleClient:
             state_cmd = self._protocol.get_device_state_command()
             _LOGGER.debug(
                 "CTW3 polling CMD 210 (state) for %s: %s",
-                self.mac_address, state_cmd.hex(),
+                self.mac_address,
+                state_cmd.hex(),
             )
             self._notification_event.clear()
             try:
@@ -656,7 +678,8 @@ class FountainBleClient:
                 config_cmd = self._protocol.get_device_config_command()
                 _LOGGER.debug(
                     "CTW3 polling CMD 211 (config) for %s: %s",
-                    self.mac_address, config_cmd.hex(),
+                    self.mac_address,
+                    config_cmd.hex(),
                 )
                 self._notification_event.clear()
                 try:
@@ -682,7 +705,8 @@ class FountainBleClient:
                 status_cmd = self._protocol.get_status_command()
                 _LOGGER.warning(
                     "CTW3 CMD 210 no response — trying CMD 230 (type=2) for %s: %s",
-                    self.mac_address, status_cmd.hex(),
+                    self.mac_address,
+                    status_cmd.hex(),
                 )
                 self._notification_event.clear()
                 try:
@@ -773,7 +797,9 @@ class FountainBleClient:
                 "Ensure Bluetooth is enabled and the fountain is powered on."
             )
 
-        _LOGGER.debug("BLE device found: %s via %s", ble_device.name, ble_device.details)
+        _LOGGER.debug(
+            "BLE device found: %s via %s", ble_device.name, ble_device.details
+        )
         # Log advertisement service_data — available without connecting; may encode status.
         svc_info: BluetoothServiceInfoBleak | None = bluetooth.async_last_service_info(
             self.hass, self.mac_address, connectable=False
@@ -782,14 +808,20 @@ class FountainBleClient:
             for uuid, raw in svc_info.advertisement.service_data.items():
                 _LOGGER.debug(
                     "BLE adv service_data UUID=%s  hex=%s  dec=%s",
-                    uuid, raw.hex(), list(raw),
+                    uuid,
+                    raw.hex(),
+                    list(raw),
                 )
         # Derive the device alias from the *actual* BLE advertisement name so that the
         # correct protocol parser is used regardless of the user's friendly name in config.
         # e.g. "Petkit_CTW3_100" → alias "CTW3", "Petkit_W5_XYZ" → alias "W5"
         if ble_device.name:
             self._alias = _alias_from_name(ble_device.name)
-        _LOGGER.debug("BLE alias derived from device name '%s': '%s'", ble_device.name, self._alias)
+        _LOGGER.debug(
+            "BLE alias derived from device name '%s': '%s'",
+            ble_device.name,
+            self._alias,
+        )
         mac_bytes = [int(b, 16) for b in self.mac_address.split(":")]
         self._protocol = LocalFountainBleProtocol(self._alias, mac_bytes=mac_bytes)
         self._last_status = None
@@ -802,7 +834,9 @@ class FountainBleClient:
         )
         _LOGGER.info("BLE connected to %s (%s)", self.device_name, self.mac_address)
         await self._client.start_notify(BLE_NOTIFY_UUID, self._on_notification)
-        _LOGGER.debug("BLE notify started for %s (%s)", self.device_name, self.mac_address)
+        _LOGGER.debug(
+            "BLE notify started for %s (%s)", self.device_name, self.mac_address
+        )
 
     async def _subscribe_extra_notify_chars(self) -> None:
         """Subscribe to any notify characteristics beyond the primary aaa1 char.
@@ -821,7 +855,9 @@ class FountainBleClient:
                         and char.uuid.lower() != BLE_NOTIFY_UUID.lower()
                     ):
                         try:
-                            await self._client.start_notify(char.uuid, self._on_notification)
+                            await self._client.start_notify(
+                                char.uuid, self._on_notification
+                            )
                             _LOGGER.debug(
                                 "CTW3: subscribed to extra notify char %s", char.uuid
                             )
@@ -944,7 +980,9 @@ class FountainBleClient:
         self._last_status = None
         self._notification_event.clear()
         status_cmd = self._protocol.get_status_command()
-        _LOGGER.debug("BLE sending CMD 230 to %s: %s", self.mac_address, status_cmd.hex())
+        _LOGGER.debug(
+            "BLE sending CMD 230 to %s: %s", self.mac_address, status_cmd.hex()
+        )
         await self._write(status_cmd)
 
         # Loop until we receive a CMD-230 notification or the deadline expires.
@@ -952,7 +990,10 @@ class FountainBleClient:
         while self._last_status is None:
             remaining = deadline - asyncio.get_running_loop().time()
             if remaining <= 0:
-                _LOGGER.warning("BLE status timeout for %s (no CMD 230 response received)", self.mac_address)
+                _LOGGER.warning(
+                    "BLE status timeout for %s (no CMD 230 response received)",
+                    self.mac_address,
+                )
                 break
             self._notification_event.clear()
             try:
@@ -998,4 +1039,3 @@ class FountainBleClient:
                 self._last_status = result
         # Signal that at least one notification arrived
         self._notification_event.set()
-
