@@ -89,7 +89,7 @@ class PetkitNotificationManager:
                 "entity",
                 integrations=["petkit"],
             )
-        except Exception:  # noqa: BLE001
+        except Exception:
             LOGGER.exception("PetKit: failed to load translations for notifications")
 
     def stop(self) -> None:
