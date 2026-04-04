@@ -121,9 +121,7 @@ class LocalFountainBleProtocol:
     _CMD_MODE: int = 220
     _CMD_CONFIG: int = 221
 
-    def __init__(
-        self, alias: str, mac_bytes: list[int] | None = None
-    ) -> None:
+    def __init__(self, alias: str, mac_bytes: list[int] | None = None) -> None:
         """Initialise for the given device alias (e.g. 'CTW3', 'W5').
 
         The CTW3 / Eversweet Max 2 uses an all-zero device ID with the magic
@@ -190,7 +188,11 @@ class LocalFountainBleProtocol:
             bytes(device_id_padded).hex(),
             bytes(self._secret).hex(),
         )
-        cmds.append(self._build_frame(self._CMD_AUTH, 1, [0, 0, *device_id_padded, *self._secret]))
+        cmds.append(
+            self._build_frame(
+                self._CMD_AUTH, 1, [0, 0, *device_id_padded, *self._secret]
+            )
+        )
         cmds.append(self._build_frame(self._CMD_SYNC, 1, [0, 0, *self._secret]))
 
         cmds.append(self._build_frame(self._CMD_SET_TIME, 1, self._time_bytes()))
@@ -370,7 +372,16 @@ class LocalFountainBleProtocol:
 
     def _build_frame(self, cmd: int, type_: int, data: list[int]) -> bytearray:
         """Build a BLE command frame and advance the sequence counter."""
-        frame = [*self._FRAME_START, cmd, type_, self._seq, len(data), 0, *data, *self._FRAME_END]
+        frame = [
+            *self._FRAME_START,
+            cmd,
+            type_,
+            self._seq,
+            len(data),
+            0,
+            *data,
+            *self._FRAME_END,
+        ]
         self._seq = (self._seq + 1) & 0xFF
         return bytearray(frame)
 
