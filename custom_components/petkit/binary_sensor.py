@@ -254,9 +254,15 @@ BINARY_SENSOR_MAPPING: dict[type[PetkitDevices], list[PetKitBinarySensorDesc]] =
                 False
                 if device.status.power_status == 0
                 else (
-                    None
-                    if device.status.run_status is None
-                    else device.status.run_status > 0
+                    # CTW3 uses suspend_status: 0=running, 1=paused.
+                    # Other models (W4/W5/CTW2) use run_status > 0.
+                    device.status.suspend_status == 0
+                    if device.status.suspend_status is not None
+                    else (
+                        None
+                        if device.status.run_status is None
+                        else device.status.run_status > 0
+                    )
                 )
             ),
         ),
