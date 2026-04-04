@@ -103,9 +103,12 @@ class LocalFountainBleProtocol:
          73  Authenticate with device_id + secret
          86  Sync using secret
          84  Set device clock
+        210  Request device state (CTW3 primary poll)
+        211  Request device configuration
         230  Request full status (state + config in one payload)
         220  Set power state / operating mode
         221  Set configuration block
+        222  Reset filter life counter
     """
 
     _FRAME_START = [0xFA, 0xFC, 0xFD]
@@ -120,6 +123,7 @@ class LocalFountainBleProtocol:
     _CMD_STATUS: int = 230  # combined state+config (type=2 request)
     _CMD_MODE: int = 220
     _CMD_CONFIG: int = 221
+    _CMD_RESET_FILTER: int = 222
 
     def __init__(self, alias: str, mac_bytes: list[int] | None = None) -> None:
         """Initialise for the given device alias (e.g. 'CTW3', 'W5').
@@ -227,6 +231,10 @@ class LocalFountainBleProtocol:
     def build_set_config_command(self, config_data: list[int]) -> bytearray:
         """Return CMD 221 – write a configuration block."""
         return self._build_frame(self._CMD_CONFIG, 1, config_data)
+
+    def get_reset_filter_command(self) -> bytearray:
+        """Return CMD 222 – reset the filter life counter."""
+        return self._build_frame(self._CMD_RESET_FILTER, 1, [0])
 
     # ------------------------------------------------------------------
     # Notification handler
@@ -505,11 +513,26 @@ class LocalFountainBleProtocol:
         return result
 
     def _parse_status_generic(self, payload: bytes) -> dict[str, Any] | None:
-        """Parse CMD 230 status for W4/W5/CTW2 family (12-byte state section)."""
+        """Parse CMD 230 status for W4/W5/CTW2 family.
+
+        Byte layout (confirmed from petkit_ble_mqtt parsers.py device_status()):
+          [0]     power_status
+          [1]     mode                  (1=normal, 2=smart)
+          [2]     dnd_state
+          [3]     warning_breakdown
+          [4]     warning_water_missing
+          [5]     warning_filter
+          [6:10]  pump_runtime          big-endian uint32, seconds
+          [10]    filter_percentage     0-100 raw integer
+          [11]    running_status
+          [12:16] pump_runtime_today    big-endian uint32, seconds
+          [16]    smart_time_on         minutes (optional)
+          [17]    smart_time_off        minutes (optional)
+        """
         if len(payload) < 12:
             _LOGGER.debug("Generic status payload too short: %d bytes", len(payload))
             return None
-        return {
+        result: dict[str, Any] = {
             "power_status": payload[0],
             "mode": payload[1],
             "dnd_state": payload[2],
@@ -520,6 +543,13 @@ class LocalFountainBleProtocol:
             "filter_percentage": (payload[10] & 0xFF),
             "running_status": payload[11] & 0xFF,
         }
+        if len(payload) >= 16:
+            result["pump_runtime_today"] = int.from_bytes(payload[12:16], "big")
+        if len(payload) >= 17:
+            result["smart_time_on"] = payload[16]
+        if len(payload) >= 18:
+            result["smart_time_off"] = payload[17]
+        return result
 
     @staticmethod
     def _time_bytes() -> list[int]:
@@ -768,6 +798,20 @@ class FountainBleClient:
             await self._write(cmd)
         except Exception as err:  # noqa: BLE001
             _LOGGER.error("BLE set_config failed for %s: %s", self.mac_address, err)
+            return False
+        finally:
+            await self._disconnect()
+        return True
+
+    async def async_reset_filter(self) -> bool:
+        """Connect, send filter reset command (CMD 222), disconnect."""
+        try:
+            await self._connect()
+            await self._run_init_sequence()
+            cmd = self._protocol.get_reset_filter_command()
+            await self._write(cmd)
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.error("BLE reset_filter failed for %s: %s", self.mac_address, err)
             return False
         finally:
             await self._disconnect()
