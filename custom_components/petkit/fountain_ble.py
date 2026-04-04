@@ -358,14 +358,6 @@ class LocalFountainBleProtocol:
         if "supply_voltage" in status:
             e.supply_voltage = status["supply_voltage"]
 
-        # CTW3-specific fields
-        if "suspend_status" in status and hasattr(s, "suspend_status"):
-            s.suspend_status = status["suspend_status"]
-        if "electric_status" in status and hasattr(s, "electric_status"):
-            s.electric_status = status["electric_status"]
-        if "module_status" in status and hasattr(device, "module_status"):
-            device.module_status = status["module_status"]
-
     # ------------------------------------------------------------------
     # Private helpers
     # ------------------------------------------------------------------

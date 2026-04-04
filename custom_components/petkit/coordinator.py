@@ -412,4 +412,10 @@ class PetkitLocalBleCoordinator(DataUpdateCoordinator):
             except Exception as err:  # noqa: BLE001
                 LOGGER.error("Local BLE poll failed for %s (%s): %s", name, mac, err)
 
+        if results:
+            # Notify all entities subscribed to the main data coordinator so
+            # they pick up the in-place BLE changes without waiting for the
+            # next cloud poll.
+            self.data_coordinator.async_update_listeners()
+
         return results
