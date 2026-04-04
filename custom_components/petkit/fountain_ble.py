@@ -832,36 +832,6 @@ class FountainBleClient:
             "BLE notify started for %s (%s)", self.device_name, self.mac_address
         )
 
-    async def _subscribe_extra_notify_chars(self) -> None:
-        """Subscribe to any notify characteristics beyond the primary aaa1 char.
-
-        Some CTW3 firmware variants may push status on a different characteristic.
-        All extra notifications are routed through the same ``_on_notification``
-        handler so they are parsed and stored in ``_last_status`` normally.
-        """
-        if self._client is None or not self._client.is_connected:
-            return
-        try:
-            for service in self._client.services:
-                for char in service.characteristics:
-                    if (
-                        "notify" in char.properties
-                        and char.uuid.lower() != BLE_NOTIFY_UUID.lower()
-                    ):
-                        try:
-                            await self._client.start_notify(
-                                char.uuid, self._on_notification
-                            )
-                            _LOGGER.debug(
-                                "CTW3: subscribed to extra notify char %s", char.uuid
-                            )
-                        except Exception as err:  # noqa: BLE001
-                            _LOGGER.warning(
-                                "CTW3: failed to subscribe to %s: %s", char.uuid, err
-                            )
-        except Exception as err:  # noqa: BLE001
-            _LOGGER.warning("CTW3: extra notify subscription error: %s", err)
-
     async def _log_readable_gatt_chars(self) -> None:
         """Enumerate all GATT characteristics and read any readable ones.
 
