@@ -93,7 +93,7 @@ Camera entities use WebRTC via Agora SDK or go2rtc. Supporting files: `agora_api
 
 - All files start with `from __future__ import annotations`.
 - `TYPE_CHECKING` blocks are used for all coordinator/config-entry type imports to avoid circular imports.
-- `LOGGER` is always imported from `.const` — never create a new logger directly.
+- Logging currently uses a mixed pattern: some modules import `LOGGER` from `.const`, while others define a module-local logger with `logging.getLogger(__name__)`. Follow the existing pattern in the file you are editing, and avoid introducing a second logger style within the same module unless the file is being intentionally refactored.
 - Use `pypetkitapi` device type constants (`T6`, `DEVICES_LITTER_BOX`, etc.) rather than raw strings when possible.
 - Options config is split into named sections: `BT_SECTION` (`"bluetooth_options"`) and `MEDIA_SECTION` (`"medias_options"`).
 - Python 3.14 is targeted (see `pyproject.toml` and CI matrix).
