@@ -9,6 +9,7 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
 from pypetkitapi import (
+    CTW3,
     DEVICES_LITTER_BOX,
     FEEDER_MINI,
     LITTER_WITH_CAMERA,
@@ -846,6 +847,7 @@ SWITCH_MAPPING: dict[type[PetkitDevices], list[PetKitSwitchDesc]] = {
             turn_off=lambda api, device: api.send_api_request(
                 device.id, DeviceCommand.UPDATE_SETTING, {"lampRingSwitch": 0}
             ),
+            ignore_types=[CTW3],
         ),
         PetKitSwitchDesc(
             key="Do not disturb",
@@ -858,6 +860,7 @@ SWITCH_MAPPING: dict[type[PetkitDevices], list[PetKitSwitchDesc]] = {
             turn_off=lambda api, device: api.send_api_request(
                 device.id, DeviceCommand.UPDATE_SETTING, {"noDisturbingSwitch": 0}
             ),
+            ignore_types=[CTW3],
         ),
         PetKitSwitchDesc(
             key="Power",

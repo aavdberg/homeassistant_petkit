@@ -91,6 +91,11 @@ async def _handle_fountain_mode(api, device, opt_value):
     action = action_map.get(mode_int)
     if action:
         await api.bluetooth_manager.send_ble_command(device.id, action)
+    else:
+        LOGGER.warning(
+            "Mode '%s' cannot be set manually on this device (read-only hardware state)",
+            opt_value,
+        )
 
 
 COMMON_ENTITIES = []
@@ -231,7 +236,9 @@ SELECT_MAPPING: dict[type[PetkitDevices], list[PetKitSelectDesc]] = {
             key="Working mode",
             translation_key="working_mode",
             current_option=lambda device: FOUNTAIN_WORKING_MODE_CTW3.get(device.mode),
-            options=lambda: list(FOUNTAIN_WORKING_MODE_CTW3.values()),
+            options=lambda: [
+                v for k, v in FOUNTAIN_WORKING_MODE_CTW3.items() if k != 3
+            ],
             action=_handle_fountain_mode,
             entity_category=EntityCategory.CONFIG,
             only_for_types=[CTW3],
@@ -253,6 +260,7 @@ SELECT_MAPPING: dict[type[PetkitDevices], list[PetKitSelectDesc]] = {
                 },
             ),
             entity_category=EntityCategory.CONFIG,
+            ignore_types=[CTW3],
         ),
     ],
     Purifier: [*COMMON_ENTITIES],

@@ -268,7 +268,8 @@
           "normal": "Normaal",
           "smart": "Slim",
           "standard": "Standaard",
-          "intermittent": "Intermitterend"
+          "intermittent": "Intermitterend",
+          "battery": "Batterij"
         }
       },
       "led_brightness": {

@@ -268,7 +268,8 @@
           "normal": "Normal",
           "smart": "Smart",
           "standard": "Standard",
-          "intermittent": "Intermittent"
+          "intermittent": "Intermittent",
+          "battery": "Battery"
         }
       },
       "led_brightness": {

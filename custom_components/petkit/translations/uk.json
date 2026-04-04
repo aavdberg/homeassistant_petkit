@@ -268,7 +268,8 @@
           "normal": "Нормальний",
           "smart": "Розумний",
           "standard": "Стандартний",
-          "intermittent": "Переривчастий"
+          "intermittent": "Переривчастий",
+          "battery": "Батарея"
         }
       },
       "led_brightness": {
