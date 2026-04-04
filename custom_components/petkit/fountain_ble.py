@@ -928,10 +928,21 @@ class FountainBleClient:
             _LOGGER.debug("BLE sending CMD 213 to %s: %s", self.mac_address, cmd.hex())
             await self._write(cmd)
 
-        # Wait for the CMD 213 response, then hold for up to 3 s to capture
-        # the proactive CMD 230 that CTW3 sometimes pushes at ~200–400 ms.
+        # Wait for the CMD 213 response. Only CTW3 / Eversweet Max 2 needs the
+        # extra passive window to catch a proactive CMD 230 before auth; keep
+        # the init path short for other models.
         await self._wait_for_notification(timeout=5.0)
-        await asyncio.sleep(3.0)
+        protocol_model = (
+            str(
+                getattr(self._protocol, "model", None)
+                or getattr(self._protocol, "device_model", None)
+                or getattr(self._protocol, "product_name", None)
+                or ""
+            )
+        ).upper()
+        expects_proactive_status = "CTW3" in protocol_model or "MAX 2" in protocol_model
+        if expects_proactive_status:
+            await asyncio.sleep(3.0)
 
         if not self._protocol.device_id_received:
             _LOGGER.warning(
