@@ -20,6 +20,7 @@ python -m tox -e precommit
 ```
 
 Validation against Home Assistant standards uses:
+
 - `hassfest` (HA's own validation tool)
 - HACS validation action
 
@@ -31,11 +32,11 @@ There are no automated tests in this repo beyond pre-commit lint checks.
 
 All data flows through three `DataUpdateCoordinator` subclasses defined in `coordinator.py`:
 
-| Coordinator | Purpose | Polling |
-|---|---|---|
-| `PetkitDataUpdateCoordinator` | Fetches all device state via `pypetkitapi` | 60 s default; 5 s "fast" after MQTT event; 190 s when MQTT connected |
-| `PetkitMediaUpdateCoordinator` | Downloads/manages camera media files to `/media` | Configurable (default 15 min) |
-| `PetkitBluetoothUpdateCoordinator` | Opens/closes BLE relay connections for water fountains | Configurable (default 30 min) |
+| Coordinator                        | Purpose                                                | Polling                                                              |
+| ---------------------------------- | ------------------------------------------------------ | -------------------------------------------------------------------- |
+| `PetkitDataUpdateCoordinator`      | Fetches all device state via `pypetkitapi`             | 60 s default; 5 s "fast" after MQTT event; 190 s when MQTT connected |
+| `PetkitMediaUpdateCoordinator`     | Downloads/manages camera media files to `/media`       | Configurable (default 15 min)                                        |
+| `PetkitBluetoothUpdateCoordinator` | Opens/closes BLE relay connections for water fountains | Configurable (default 30 min)                                        |
 
 All three are stored in `entry.runtime_data` (a `PetkitData` dataclass defined in `data.py`).
 
@@ -59,6 +60,7 @@ Every HA platform (sensor, switch, button, etc.) follows the same structure:
 ### Device Filtering in Descriptors
 
 When writing a new entity descriptor, control device compatibility using:
+
 - `only_for_types=["t6", "t7"]` — allowlist by device type string (lowercase)
 - `ignore_types=["feeder_mini"]` — denylist
 - `force_add=["d4h"]` — skip value-lambda check and always add
@@ -69,6 +71,7 @@ Device type strings come from `pypetkitapi` constants (e.g., `T6`, `T7`, `D4H`, 
 ### Unique IDs
 
 Entity unique IDs follow the pattern:
+
 ```
 {device_type}_{device_sn}_{entity_key}
 ```
