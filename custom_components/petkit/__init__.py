@@ -114,14 +114,16 @@ async def async_setup_entry(
     local_ble_enabled = entry.options.get(LOCAL_BLE_SECTION, {}).get(
         CONF_LOCAL_BLE_ENABLED, DEFAULT_LOCAL_BLE_ENABLED
     )
-    coordinator_local_ble = PetkitLocalBleCoordinator(
-        hass=hass,
-        logger=LOGGER,
-        name=f"{DOMAIN}.local_ble",
-        update_interval=timedelta(seconds=DEFAULT_LOCAL_BLE_POLL_INTERVAL),
-        config_entry=entry,
-        data_coordinator=coordinator,
-    )
+    coordinator_local_ble: PetkitLocalBleCoordinator | None = None
+    if local_ble_enabled:
+        coordinator_local_ble = PetkitLocalBleCoordinator(
+            hass=hass,
+            logger=LOGGER,
+            name=f"{DOMAIN}.local_ble",
+            update_interval=timedelta(seconds=DEFAULT_LOCAL_BLE_POLL_INTERVAL),
+            config_entry=entry,
+            data_coordinator=coordinator,
+        )
     entry.runtime_data = PetkitData(
         client=PetKitClient(
             username=entry.data[CONF_USERNAME],
