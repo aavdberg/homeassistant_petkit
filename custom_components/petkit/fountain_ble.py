@@ -11,9 +11,9 @@ updates the WaterFountain entities directly from BLE data.
 
 Debug log file
 --------------
-When Local BLE is active, all BLE messages are also written to
-``<config_dir>/petkit.log`` (one rotating 1 MB backup).  The file is
-created the first time a ``FountainBleClient`` is instantiated.
+When the *local_ble_debug_log* option is enabled, BLE messages are
+written to ``<config_dir>/petkit.log`` (one rotating 1 MB backup).
+No file is created when debug logging is disabled.
 """
 
 from __future__ import annotations
@@ -43,13 +43,19 @@ _FILE_HANDLER_ATTACHED: bool = False
 
 
 def _setup_ble_log_file(config_dir: str, *, debug_enabled: bool = False) -> None:
-    """Attach a rotating file handler to the BLE logger (once per HA run).
+    """Attach a rotating file handler to the BLE logger when debug is enabled.
 
-    Writes all messages from this module to <config_dir>/petkit.log
-    alongside the normal Home Assistant log.  When *debug_enabled* is True,
-    DEBUG-level messages are included; otherwise only INFO and above are written.
+    When *debug_enabled* is True, a RotatingFileHandler writing DEBUG-level
+    messages to <config_dir>/petkit.log is attached (once per HA run).
+    When *debug_enabled* is False, no file is created or written to and the
+    logger level is left at INFO.
     """
     global _FILE_HANDLER_ATTACHED  # noqa: PLW0603
+
+    if not debug_enabled:
+        _LOGGER.setLevel(logging.INFO)
+        return
+
     log_path = Path(config_dir) / "petkit.log"
 
     if not _FILE_HANDLER_ATTACHED:
@@ -61,16 +67,12 @@ def _setup_ble_log_file(config_dir: str, *, debug_enabled: bool = False) -> None
         )
         fmt = logging.Formatter("%(asctime)s %(levelname)-8s %(name)s: %(message)s")
         handler.setFormatter(fmt)
+        handler.setLevel(logging.DEBUG)
         _LOGGER.addHandler(handler)
         _FILE_HANDLER_ATTACHED = True
         _LOGGER.info("PetKit BLE log file: %s (fountain_ble v10-cmd210)", log_path)
 
-    # Update log level on every call so toggling in HA UI takes effect after restart.
-    level = logging.DEBUG if debug_enabled else logging.INFO
-    _LOGGER.setLevel(level)
-    for h in _LOGGER.handlers:
-        if isinstance(h, logging.handlers.RotatingFileHandler):
-            h.setLevel(level)
+    _LOGGER.setLevel(logging.DEBUG)
 
 
 # BLE GATT characteristic UUIDs for PetKit fountains
