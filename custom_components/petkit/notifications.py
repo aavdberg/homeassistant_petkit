@@ -89,7 +89,9 @@ class PetkitNotificationManager:
                 "entity",
                 integrations=["petkit"],
             )
-        except Exception:  # noqa: BLE001 - translation loading is non-critical; log and continue
+        except (
+            Exception
+        ):
             LOGGER.exception("PetKit: failed to load translations for notifications")
 
     def stop(self) -> None:
@@ -308,7 +310,9 @@ class PetkitNotificationManager:
                     self._check_feeder(device)
                 elif isinstance(device, WaterFountain):
                     self._check_fountain(device)
-            except Exception:  # noqa: BLE001 - broad catch prevents one device error blocking all others
+            except (
+                Exception
+            ):
                 LOGGER.exception(
                     "PetKit: error while processing notification for device %s",
                     getattr(device, "id", "?"),
