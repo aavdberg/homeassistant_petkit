@@ -19,6 +19,7 @@ created the first time a ``FountainBleClient`` is instantiated.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from datetime import datetime, timezone
 import logging
 import logging.handlers
@@ -702,7 +703,9 @@ class FountainBleClient:
         except RuntimeError as err:
             _LOGGER.warning("CTW3 CMD 210 write failed: %s", err)
         else:
-            await self._async_poll_for_status(timeout=5.0)
+            with contextlib.suppress(asyncio.TimeoutError):
+                async with asyncio.timeout(5.0):
+                    await self._async_poll_for_status()
 
         # If state arrived, also fetch config (CMD 211) to merge LED/DND fields.
         if self._last_status is not None:
@@ -725,16 +728,19 @@ class FountainBleClient:
         await self._disconnect()
         return None
 
-    async def _async_poll_for_status(self, timeout: float) -> None:
-        """Wait up to *timeout* seconds for a status notification to arrive."""
-        deadline = asyncio.get_running_loop().time() + timeout
+    async def _async_poll_for_status(self) -> None:
+        """Wait for a status notification, looping with 1-second sub-intervals.
+
+        Callers must wrap this coroutine with ``asyncio.timeout()`` to set
+        the overall deadline, e.g.::
+
+            async with asyncio.timeout(5.0):
+                await self._async_poll_for_status()
+        """
         while self._last_status is None:
-            remaining = deadline - asyncio.get_running_loop().time()
-            if remaining <= 0:
-                break
             self._notification_event.clear()
             try:
-                async with asyncio.timeout(min(remaining, 1.0)):
+                async with asyncio.timeout(1.0):
                     await self._notification_event.wait()
             except asyncio.TimeoutError:
                 continue
@@ -780,7 +786,9 @@ class FountainBleClient:
         except RuntimeError as err:
             _LOGGER.warning("CTW3 CMD 230 write failed: %s", err)
             return
-        await self._async_poll_for_status(timeout=5.0)
+        with contextlib.suppress(asyncio.TimeoutError):
+            async with asyncio.timeout(5.0):
+                await self._async_poll_for_status()
 
     async def async_set_mode(self, power_state: int, mode: int) -> bool:
         """Connect, send a mode change command, disconnect."""
@@ -952,7 +960,9 @@ class FountainBleClient:
         # Wait for the CMD 213 response. Only CTW3 / Eversweet Max 2 needs the
         # extra passive window to catch a proactive CMD 230 before auth; keep
         # the init path short for other models.
-        await self._wait_for_notification(timeout=5.0)
+        with contextlib.suppress(asyncio.TimeoutError):
+            async with asyncio.timeout(5.0):
+                await self._wait_for_notification()
         protocol_model = (
             str(
                 getattr(self._protocol, "model", None)
@@ -1039,18 +1049,19 @@ class FountainBleClient:
             raise RuntimeError("BLE client is not connected")
         await self._client.write_gatt_char(BLE_WRITE_UUID, data, response=False)
 
-    async def _wait_for_notification(self, timeout: float = BLE_NOTIFY_TIMEOUT) -> None:
-        """Wait up to *timeout* seconds for a BLE notification.
+    async def _wait_for_notification(self) -> None:
+        """Wait for a BLE notification (no internal timeout).
 
         The caller must clear ``_notification_event`` **before** sending the
         BLE write command to avoid a race condition where the device responds
         faster than this method is reached.
+
+        Wrap with ``asyncio.timeout()`` at the call site to bound the wait::
+
+            async with asyncio.timeout(5.0):
+                await self._wait_for_notification()
         """
-        try:
-            async with asyncio.timeout(timeout):
-                await self._notification_event.wait()
-        except asyncio.TimeoutError:
-            _LOGGER.debug("BLE notification timeout for %s", self.mac_address)
+        await self._notification_event.wait()
 
     def _on_notification(self, _sender: Any, data: bytearray) -> None:
         """Handle incoming BLE notification."""
