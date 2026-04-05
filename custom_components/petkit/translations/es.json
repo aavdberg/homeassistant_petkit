@@ -3,13 +3,13 @@
     "error": {
       "account_exists": "Esta cuenta ya existe.",
       "connection": "No se puede conectar al servidor.",
-      "unknown": "Ocurri\u00f3 un error desconocido, por favor revisa los registros."
+      "unknown": "Ocurrió un error desconocido, por favor revisa los registros."
     },
     "step": {
       "user": {
         "data": {
-          "password": "Contrase\u00f1a",
-          "region": "Regi\u00f3n",
+          "password": "Contraseña",
+          "region": "Región",
           "timezone": "Zona horaria",
           "username": "Nombre de usuario/Id"
         },
@@ -20,16 +20,16 @@
   "entity": {
     "binary_sensor": {
       "battery": {
-        "name": "Bater\u00eda"
+        "name": "Batería"
       },
       "battery_installed": {
-        "name": "Bater\u00eda instalada"
+        "name": "Batería instalada"
       },
       "camera_status": {
-        "name": "Estado de la c\u00e1mara"
+        "name": "Estado de la cámara"
       },
       "care_plus_subscription": {
-        "name": "Suscripci\u00f3n Care+"
+        "name": "Suscripción Care+"
       },
       "deodorizer": {
         "name": "Desodorizante"
@@ -53,28 +53,28 @@
         "name": "Advertencia de falta de agua"
       },
       "liquid_empty": {
-        "name": "L\u00edquido desodorizante vac\u00edo"
+        "name": "Líquido desodorizante vacío"
       },
       "liquid_lack": {
-        "name": "Falta de l\u00edquido desodorizante"
+        "name": "Falta de líquido desodorizante"
       },
       "litter": {
         "name": "Arena"
       },
       "low_battery": {
-        "name": "Bater\u00eda baja"
+        "name": "Batería baja"
       },
       "low_power": {
-        "name": "Energ\u00eda baja"
+        "name": "Energía baja"
       },
       "manually_paused": {
         "name": "Pausado manualmente"
       },
       "on_ac_power": {
-        "name": "Con energ\u00eda AC"
+        "name": "Con energía AC"
       },
       "pura_air_liquid": {
-        "name": "L\u00edquido Pura Air"
+        "name": "Líquido Pura Air"
       },
       "sand_lack": {
         "name": "Falta de arena"
@@ -91,19 +91,19 @@
     },
     "button": {
       "action_continue": {
-        "name": "Acci\u00f3n: Continuar"
+        "name": "Acción: Continuar"
       },
       "action_pause": {
-        "name": "Acci\u00f3n: Pausar"
+        "name": "Acción: Pausar"
       },
       "action_reset": {
-        "name": "Acci\u00f3n: Restablecer"
+        "name": "Acción: Restablecer"
       },
       "call_pet": {
         "name": "Llamar al pet"
       },
       "cancel_manual_feed": {
-        "name": "Cancelar alimentaci\u00f3n manual"
+        "name": "Cancelar alimentación manual"
       },
       "deodorize": {
         "name": "Desodorizar"
@@ -132,13 +132,13 @@
     },
     "image": {
       "last_eat_event": {
-        "name": "\u00daltimo evento de comida"
+        "name": "Último evento de comida"
       },
       "last_feed_event": {
-        "name": "\u00daltimo evento de alimentaci\u00f3n"
+        "name": "Último evento de alimentación"
       },
       "last_visit_event": {
-        "name": "\u00daltimo evento de visita"
+        "name": "Último evento de visita"
       }
     },
     "number": {
@@ -146,10 +146,10 @@
         "name": "Retraso de limpieza"
       },
       "manual_feed": {
-        "name": "Alimentaci\u00f3n manual"
+        "name": "Alimentación manual"
       },
       "min_eating_duration": {
-        "name": "Duraci\u00f3n m\u00ednima de comida"
+        "name": "Duración mínima de comida"
       },
       "surplus": {
         "name": "Exceso"
@@ -163,16 +163,16 @@
         "name": "Intervalo de limpieza"
       },
       "eat_detection_sensitivity": {
-        "name": "Sensibilidad detecci\u00f3n de comida IA"
+        "name": "Sensibilidad detección de comida IA"
       },
       "litter_type": {
         "name": "Tipo de arena"
       },
       "move_detection_sensitivity": {
-        "name": "Sensibilidad detecci\u00f3n de movimiento"
+        "name": "Sensibilidad detección de movimiento"
       },
       "pet_detection_sensitivity": {
-        "name": "Sensibilidad detecci\u00f3n de mascota IA"
+        "name": "Sensibilidad detección de mascota IA"
       },
       "surplus_level": {
         "name": "Nivel de control de exceso"
@@ -189,25 +189,25 @@
         "name": "Tiempo promedio de comida"
       },
       "battery_level": {
-        "name": "Nivel de bater\u00eda"
+        "name": "Nivel de batería"
       },
       "deodorant_left_days": {
-        "name": "D\u00edas restantes de desodorizante"
+        "name": "Días restantes de desodorizante"
       },
       "deodorizer_level": {
         "name": "Nivel de desodorizante"
       },
       "desiccant_left_days": {
-        "name": "D\u00edas restantes de desecante"
+        "name": "Días restantes de desecante"
       },
       "device_status": {
         "name": "Estado del dispositivo"
       },
       "drink_times": {
-        "name": "Veces que bebi\u00f3"
+        "name": "Veces que bebió"
       },
       "end_date_care_plus_subscription": {
-        "name": "Fin de la suscripci\u00f3n Care+"
+        "name": "Fin de la suscripción Care+"
       },
       "error": {
         "name": "Error"
@@ -225,7 +225,7 @@
         "name": "Filtro restante"
       },
       "food_bowl_percentage": {
-        "name": "Porcentaje de comida en el taz\u00f3n"
+        "name": "Porcentaje de comida en el tazón"
       },
       "food_in_bowl": {
         "name": "Comida en el bol"
@@ -234,25 +234,25 @@
         "name": "Comida restante"
       },
       "last_update": {
-        "name": "\u00daltima actualizaci\u00f3n"
+        "name": "Última actualización"
       },
       "last_used_by": {
-        "name": "\u00daltimo utilizado por"
+        "name": "Último utilizado por"
       },
       "litter_last_event": {
-        "name": "\u00daltimo evento",
+        "name": "Último evento",
         "state": {
-          "auto_cleaning_canceled": "Limpieza autom\u00e1tica cancelada",
-          "auto_cleaning_canceled_kitten": "Limpieza autom\u00e1tica cancelada: gatito",
-          "auto_cleaning_completed": "Limpieza autom\u00e1tica completada",
-          "auto_cleaning_failed_full": "Limpieza autom\u00e1tica fallida: lleno",
-          "auto_cleaning_failed_hall_l": "Limpieza autom\u00e1tica fallida: sala L",
-          "auto_cleaning_failed_hall_t": "Limpieza autom\u00e1tica fallida: sala T",
-          "auto_cleaning_terminated": "Limpieza autom\u00e1tica terminada",
-          "auto_odor_failed": "Fallo de desodorizaci\u00f3n autom\u00e1tica",
+          "auto_cleaning_canceled": "Limpieza automática cancelada",
+          "auto_cleaning_canceled_kitten": "Limpieza automática cancelada: gatito",
+          "auto_cleaning_completed": "Limpieza automática completada",
+          "auto_cleaning_failed_full": "Limpieza automática fallida: lleno",
+          "auto_cleaning_failed_hall_l": "Limpieza automática fallida: sala L",
+          "auto_cleaning_failed_hall_t": "Limpieza automática fallida: sala T",
+          "auto_cleaning_terminated": "Limpieza automática terminada",
+          "auto_odor_failed": "Fallo de desodorización automática",
           "clean_over": "Limpieza",
           "deodorant_finished": "Desodorizante terminado",
-          "deodorant_finished_liquid_lack": "Desodorizante terminado: falta de l\u00edquido",
+          "deodorant_finished_liquid_lack": "Desodorizante terminado: falta de líquido",
           "litter_empty_completed": "Vaciado de arena completado",
           "litter_empty_failed_full": "Fallo al vaciar la arena: lleno",
           "litter_empty_failed_hall_l": "Fallo al vaciar la arena: sala L",
@@ -264,16 +264,16 @@
           "manual_cleaning_failed_hall_l": "Fallo al limpiar manualmente: sala L",
           "manual_cleaning_failed_hall_t": "Fallo al limpiar manualmente: sala T",
           "manual_cleaning_terminated": "Limpieza manual terminada",
-          "manual_odor_completed": "Desodorizaci\u00f3n manual completada",
-          "manual_odor_completed_liquid_lack": "Desodorizaci\u00f3n manual completada: falta de l\u00edquido",
-          "manual_odor_failed": "Fallo en la desodorizaci\u00f3n manual",
-          "periodic_cleaning_canceled": "Limpieza peri\u00f3dica cancelada",
-          "periodic_cleaning_canceled_kitten": "Limpieza peri\u00f3dica cancelada: gatito",
-          "periodic_cleaning_completed": "Limpieza peri\u00f3dica completada",
-          "periodic_cleaning_terminated": "Limpieza peri\u00f3dica terminada",
-          "periodic_odor_completed": "Desodorizaci\u00f3n peri\u00f3dica completada",
-          "periodic_odor_completed_liquid_lack": "Desodorizaci\u00f3n peri\u00f3dica completada: falta de l\u00edquido",
-          "periodic_odor_failed": "Fallo en la desodorizaci\u00f3n peri\u00f3dica",
+          "manual_odor_completed": "Desodorización manual completada",
+          "manual_odor_completed_liquid_lack": "Desodorización manual completada: falta de líquido",
+          "manual_odor_failed": "Fallo en la desodorización manual",
+          "periodic_cleaning_canceled": "Limpieza periódica cancelada",
+          "periodic_cleaning_canceled_kitten": "Limpieza periódica cancelada: gatito",
+          "periodic_cleaning_completed": "Limpieza periódica completada",
+          "periodic_cleaning_terminated": "Limpieza periódica terminada",
+          "periodic_odor_completed": "Desodorización periódica completada",
+          "periodic_odor_completed_liquid_lack": "Desodorización periódica completada: falta de líquido",
+          "periodic_odor_failed": "Fallo en la desodorización periódica",
           "reset_completed": "Restablecimiento completado",
           "reset_failed_full": "Restablecimiento fallido: lleno",
           "reset_failed_hall_l": "Restablecimiento fallido: sala L",
@@ -296,14 +296,14 @@
           "cleaning_paused": "Limpieza en pausa",
           "cleaning_paused_cover": "Limpieza en pausa - Cubierta",
           "cleaning_paused_pet_approach": "Limpieza en pausa - Acercamiento de mascota",
-          "cleaning_paused_pet_entered": "Limpieza en pausa - Mascota entr\u00f3",
+          "cleaning_paused_pet_entered": "Limpieza en pausa - Mascota entró",
           "cleaning_paused_pet_using": "Limpieza en pausa - Mascota usando",
           "cleaning_paused_system_error": "Limpieza en pausa - Error del sistema",
           "dumping": "Vaciando",
           "dumping_paused": "Vaciado en pausa",
           "dumping_paused_cover": "Vaciado en pausa - Cubierta",
           "dumping_paused_pet_approach": "Vaciado en pausa - Acercamiento de mascota",
-          "dumping_paused_pet_entered": "Vaciado en pausa - Mascota entr\u00f3",
+          "dumping_paused_pet_entered": "Vaciado en pausa - Mascota entró",
           "dumping_paused_pet_using": "Vaciado en pausa - Mascota usando",
           "dumping_paused_system_error": "Vaciado en pausa - Error del sistema",
           "idle": "Inactivo",
@@ -312,13 +312,13 @@
           "maintenance_paused": "Mantenimiento en pausa",
           "maintenance_paused_cover": "Mantenimiento en pausa - Cubierta",
           "maintenance_paused_pet_approach": "Mantenimiento en pausa - Acercamiento de mascota",
-          "maintenance_paused_pet_entered": "Mantenimiento en pausa - Mascota entr\u00f3",
+          "maintenance_paused_pet_entered": "Mantenimiento en pausa - Mascota entró",
           "maintenance_paused_pet_using": "Mantenimiento en pausa - Mascota usando",
           "maintenance_paused_system_error": "Mantenimiento en pausa - Error del sistema",
           "paused": "Pausado",
           "paused_cover": "Pausado - Cubierta",
           "paused_pet_approach": "Pausado - Acercamiento de mascota",
-          "paused_pet_entered": "Pausado - Mascota entr\u00f3",
+          "paused_pet_entered": "Pausado - Mascota entró",
           "paused_pet_using": "Pausado - Mascota usando",
           "paused_system_error": "Pausado - Error del sistema",
           "resetting": "Restableciendo",
@@ -342,16 +342,16 @@
         "name": "Paquete usado"
       },
       "pet_last_device_used": {
-        "name": "\u00daltima arena usada"
+        "name": "Última arena usada"
       },
       "pet_last_use_date": {
-        "name": "\u00daltima fecha de uso"
+        "name": "Última fecha de uso"
       },
       "pet_last_use_duration": {
-        "name": "Duraci\u00f3n del \u00faltimo uso"
+        "name": "Duración del último uso"
       },
       "pet_last_weight_measurement": {
-        "name": "\u00daltima medici\u00f3n de peso"
+        "name": "Última medición de peso"
       },
       "planned_dispensed": {
         "name": "Dispensado planificado"
@@ -366,13 +366,13 @@
         "name": "Agua purificada"
       },
       "raw_distribution_data": {
-        "name": "Datos de distribuci\u00f3n RAW"
+        "name": "Datos de distribución RAW"
       },
       "rssi": {
         "name": "RSSI"
       },
       "spray_deodorant_liquid": {
-        "name": "L\u00edquido de desodorizante en spray"
+        "name": "Líquido de desodorizante en spray"
       },
       "times_dispensed": {
         "name": "Veces dispensado"
@@ -410,34 +410,34 @@
     },
     "switch": {
       "auto_clean": {
-        "name": "Limpieza autom\u00e1tica"
+        "name": "Limpieza automática"
       },
       "auto_odor": {
-        "name": "Desodorizaci\u00f3n autom\u00e1tica"
+        "name": "Desodorización automática"
       },
       "avoid_repeat": {
-        "name": "Evitar repetici\u00f3n"
+        "name": "Evitar repetición"
       },
       "camera": {
-        "name": "C\u00e1mara"
+        "name": "Cámara"
       },
       "child_lock": {
         "name": "Bloqueo infantil"
       },
       "cont_rotation": {
-        "name": "Rotaci\u00f3n continua"
+        "name": "Rotación continua"
       },
       "deep_cleaning": {
         "name": "Limpieza profunda"
       },
       "deep_deodor": {
-        "name": "Desodorizaci\u00f3n profunda"
+        "name": "Desodorización profunda"
       },
       "desiccant_notif": {
-        "name": "Notificaci\u00f3n sobre cambio de desecante"
+        "name": "Notificación sobre cambio de desecante"
       },
       "dispensing_notif": {
-        "name": "Notificaci\u00f3n sobre dispensado"
+        "name": "Notificación sobre dispensado"
       },
       "display": {
         "name": "Pantalla"
@@ -446,10 +446,10 @@
         "name": "No molestar"
       },
       "feed_sound": {
-        "name": "Sonido de alimentaci\u00f3n"
+        "name": "Sonido de alimentación"
       },
       "feed_tone": {
-        "name": "Tono de alimentaci\u00f3n"
+        "name": "Tono de alimentación"
       },
       "highlight": {
         "name": "Resaltar seguimiento de mascotas"
@@ -464,37 +464,37 @@
         "name": "Peso ligero"
       },
       "low_battery_notif": {
-        "name": "Notificaci\u00f3n sobre bater\u00eda baja"
+        "name": "Notificación sobre batería baja"
       },
       "microphone": {
-        "name": "Micr\u00f3fono"
+        "name": "Micrófono"
       },
       "move_notif": {
-        "name": "Notificaci\u00f3n sobre movimiento"
+        "name": "Notificación sobre movimiento"
       },
       "night_vision": {
-        "name": "Visi\u00f3n nocturna"
+        "name": "Visión nocturna"
       },
       "periodic_cleaning": {
-        "name": "Limpieza peri\u00f3dica"
+        "name": "Limpieza periódica"
       },
       "periodic_odor": {
-        "name": "Desodorizaci\u00f3n peri\u00f3dica"
+        "name": "Desodorización periódica"
       },
       "pet_eat_notif": {
-        "name": "Notificaci\u00f3n sobre comida de la mascota"
+        "name": "Notificación sobre comida de la mascota"
       },
       "pet_tracking": {
         "name": "Seguimiento de mascotas"
       },
       "pet_visit_notif": {
-        "name": "Notificaci\u00f3n sobre visita de mascota"
+        "name": "Notificación sobre visita de mascota"
       },
       "power": {
-        "name": "Energ\u00eda"
+        "name": "Energía"
       },
       "refill_notif": {
-        "name": "Notificaci\u00f3n sobre necesidad de recarga"
+        "name": "Notificación sobre necesidad de recarga"
       },
       "shortage_alarm": {
         "name": "Alarma de escasez"
@@ -517,13 +517,74 @@
     },
     "text": {
       "manual_feed_dual_h1": {
-        "name": "Alimentaci\u00f3n manual Hopper 1"
+        "name": "Alimentación manual Hopper 1"
       },
       "manual_feed_dual_h2": {
-        "name": "Alimentaci\u00f3n manual Hopper 2"
+        "name": "Alimentación manual Hopper 2"
       },
       "manual_feed_single": {
-        "name": "Alimentaci\u00f3n manual"
+        "name": "Alimentación manual"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "always_on_stream": "Retransmisión siempre activa",
+          "region": "Región",
+          "time_zone": "Zona horaria"
+        },
+        "data_description": {
+          "always_on_stream": "Mantiene la sesión de retransmisión interna precalentada para que los navegadores, clientes WHEP y consumidores de stream puedan conectarse rápidamente. El stream de retransmisión también puede ser reutilizado por otros consumidores. Esto mantiene una sesión activa y consume más recursos del dispositivo y de la nube."
+        },
+        "sections": {
+          "bluetooth_options": {
+            "data": {
+              "ble_relay_enabled": "Activar relé Bluetooth",
+              "scan_interval_bluetooth": "Intervalo de actualización Bluetooth (minutos)"
+            },
+            "data_description": {
+              "ble_relay_enabled": "Si está desactivado, las actualizaciones de la fuente solo ocurrirán cuando el dispositivo se actualice desde la aplicación."
+            },
+            "description": "Estas opciones solo son efectivas si tiene una fuente y al menos un dispositivo que pueda actuar como relé Bluetooth (p. ej., dispensador, arenero). Consulte la aplicación Petkit para más información.",
+            "name": "Opciones de Bluetooth"
+          },
+          "local_ble_options": {
+            "data": {
+              "local_ble_enabled": "Activar Bluetooth local",
+              "local_ble_fountains": "Fuentes (lista de {{\"mac\": \"XX:XX:XX:XX:XX:XX\", \"name\": \"Mi Fuente\"}})",
+              "local_ble_debug_log": "Activar registro de depuración (petkit.log)"
+            },
+            "data_description": {
+              "local_ble_enabled": "Se conecta directamente a su fuente mediante Bluetooth (adaptador local o proxy Bluetooth de ESPHome). No requiere un dispositivo relé de cuenta Petkit.",
+              "local_ble_fountains": "Lista de fuentes a consultar mediante BLE local. Cada entrada debe contener una clave 'mac' y opcionalmente una clave 'name'.",
+              "local_ble_debug_log": "Escribe información detallada de depuración BLE en /config/petkit.log. Desactivar cuando no sea necesario para reducir escrituras en disco."
+            },
+            "description": "Conexión Bluetooth directa a su fuente. Funciona con adaptadores Bluetooth locales y proxys Bluetooth de ESPHome.",
+            "name": "Opciones de Bluetooth local"
+          },
+          "medias_options": {
+            "data": {
+              "delete_media_after": "Eliminar medios después de (días)",
+              "media_dl_image": "Obtener imágenes",
+              "media_dl_video": "Obtener videos",
+              "media_ev_type": "Tipo de evento para descarga",
+              "media_path": "Ruta de medios",
+              "scan_interval_media": "Intervalo de actualización de medios (minutos)"
+            },
+            "data_description": {
+              "delete_media_after": "Eliminar los medios descargados después del número de días especificado. (0 = nunca eliminar)",
+              "media_dl_image": "Descargar todas las imágenes de sus dispositivos, filtradas por los eventos seleccionados a continuación (no se requiere suscripción activa a Care+).",
+              "media_dl_video": "Descargar todos los videos de sus dispositivos, filtrados por los eventos seleccionados a continuación. (requiere una suscripción activa a Care+)",
+              "media_path": "Ruta donde se almacenarán los medios. Si no se especifica, los medios se almacenarán en la carpeta /media de Home Assistant.",
+              "scan_interval_media": "Intervalo para descargar nuevos medios (imágenes y videos) desde los servidores de Petkit."
+            },
+            "description": "Estas opciones solo son efectivas si tiene al menos un dispositivo (p. ej., dispensador, arenero) capaz de capturar imágenes y videos.",
+            "name": "Opciones de medios"
+          }
+        },
+        "title": "Configuración de la integración Petkit"
       }
     }
   }

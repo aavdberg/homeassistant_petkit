@@ -795,6 +795,20 @@
             "description": "These options are only effective if you have a fountain and at least one device that can act as a bluetooth relay (e.g., feeder, litter box). Refer to the Petkit app for more information.",
             "name": "Bluetooth options"
           },
+          "local_ble_options": {
+            "data": {
+              "local_ble_enabled": "Enable local Bluetooth",
+              "local_ble_fountains": "Fountains (list of {{\"mac\": \"XX:XX:XX:XX:XX:XX\", \"name\": \"My Fountain\"}})",
+              "local_ble_debug_log": "Enable debug log (petkit.log)"
+            },
+            "data_description": {
+              "local_ble_enabled": "Connect directly to your fountain via Bluetooth (local adapter or ESPHome Bluetooth Proxy). Does not require a Petkit account relay device.",
+              "local_ble_fountains": "List of fountains to poll via local BLE. Each entry must contain a 'mac' and optionally a 'name' key.",
+              "local_ble_debug_log": "Write detailed BLE debug information to /config/petkit.log. Disable when not needed to reduce disk writes."
+            },
+            "description": "Direct Bluetooth connection to your fountain. Works with local Bluetooth adapters and ESPHome Bluetooth Proxies.",
+            "name": "Local Bluetooth options"
+          },
           "medias_options": {
             "data": {
               "delete_media_after": "Delete media after (days)",

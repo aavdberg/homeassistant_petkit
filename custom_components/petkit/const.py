@@ -21,6 +21,16 @@ CONF_BLE_RELAY_ENABLED = "ble_relay_enabled"
 CONF_SCAN_INTERVAL_BLUETOOTH = "scan_interval_bluetooth"
 CONF_STREAM_CONTROL_MODE = "stream_control_mode"
 
+# Local (direct) BLE — issue #31
+COORDINATOR_LOCAL_BLE = "coordinator_local_ble"
+LOCAL_BLE_SECTION = "local_ble_options"
+CONF_LOCAL_BLE_ENABLED = "local_ble_enabled"
+CONF_LOCAL_BLE_FOUNTAINS = "local_ble_fountains"  # list of {name, mac} dicts
+CONF_LOCAL_BLE_DEBUG = "local_ble_debug_log"
+DEFAULT_LOCAL_BLE_ENABLED = False
+DEFAULT_LOCAL_BLE_DEBUG = False
+DEFAULT_LOCAL_BLE_POLL_INTERVAL = 60
+
 MEDIA_SECTION = "medias_options"
 CONF_MEDIA_DL_VIDEO = "media_dl_video"
 CONF_MEDIA_DL_IMAGE = "media_dl_image"

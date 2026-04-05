@@ -325,3 +325,104 @@ class PetkitBluetoothUpdateCoordinator(DataUpdateCoordinator):
             return True
         LOGGER.debug(f"Bluetooth connection for device id = {device_id} failed")
         return False
+
+
+class PetkitLocalBleCoordinator(DataUpdateCoordinator):
+    """Coordinator for direct (local) BLE communication with PetKit fountains.
+
+    Polls each configured fountain over direct Bluetooth at a fixed interval.
+    Updates the WaterFountain entity data in the main data coordinator so that
+    existing entities automatically reflect BLE-sourced state without needing
+    separate BLE-specific entities.
+    """
+
+    def __init__(
+        self,
+        hass,
+        logger,
+        name,
+        update_interval,
+        config_entry,
+        data_coordinator: PetkitDataUpdateCoordinator,
+    ):
+        """Initialize the local BLE coordinator."""
+
+        super().__init__(
+            hass,
+            logger,
+            name=name,
+            update_interval=update_interval,
+            config_entry=config_entry,
+        )
+        self.config = config_entry
+        self.data_coordinator = data_coordinator
+
+    async def _async_update_data(self) -> dict[str, Any]:
+        """Poll all configured local BLE fountains and update entity data."""
+        from .const import (
+            CONF_LOCAL_BLE_DEBUG,
+            CONF_LOCAL_BLE_ENABLED,
+            CONF_LOCAL_BLE_FOUNTAINS,
+            DEFAULT_LOCAL_BLE_DEBUG,
+            DEFAULT_LOCAL_BLE_ENABLED,
+            LOCAL_BLE_SECTION,
+        )
+        from .fountain_ble import FountainBleClient, LocalFountainBleProtocol
+
+        ble_section = self.config.options.get(LOCAL_BLE_SECTION, {})
+        if not ble_section.get(CONF_LOCAL_BLE_ENABLED, DEFAULT_LOCAL_BLE_ENABLED):
+            LOGGER.debug("Local BLE is disabled by configuration")
+            return {}
+
+        debug_log: bool = ble_section.get(CONF_LOCAL_BLE_DEBUG, DEFAULT_LOCAL_BLE_DEBUG)
+        fountains: list[dict] = ble_section.get(CONF_LOCAL_BLE_FOUNTAINS, [])
+        results: dict[str, Any] = {}
+
+        for fountain_cfg in fountains:
+            mac: str = fountain_cfg.get("mac", "")
+            name: str = fountain_cfg.get("name", mac)
+            if not mac:
+                continue
+            try:
+                client = FountainBleClient(self.hass, mac, name, debug_log=debug_log)
+                status = await client.async_get_status()
+                if status is None:
+                    LOGGER.warning("No BLE status received from %s (%s)", name, mac)
+                    continue
+                self._apply_ble_update_to_entities(
+                    mac, name, status, results, LocalFountainBleProtocol
+                )
+            except Exception as err:  # noqa: BLE001
+                LOGGER.error("Local BLE poll failed for %s (%s): %s", name, mac, err)
+
+        if results:
+            # Notify all entities subscribed to the main data coordinator so
+            # they pick up the in-place BLE changes without waiting for the
+            # next cloud poll.
+            self.data_coordinator.async_update_listeners()
+
+        return results
+
+    def _apply_ble_update_to_entities(
+        self,
+        mac: str,
+        name: str,
+        status: dict[str, Any],
+        results: dict[str, Any],
+        protocol_cls: Any,
+    ) -> None:
+        """Find the matching WaterFountain entity and apply BLE status to it."""
+        from pypetkitapi import WaterFountain
+
+        for device in self.config.runtime_data.client.petkit_entities.values():
+            if isinstance(device, WaterFountain) and (
+                getattr(device, "ble_mac", None) == mac
+                or getattr(device, "mac", None) == mac
+            ):
+                protocol_cls.update_water_fountain(device, status)
+                results[mac] = status
+                LOGGER.debug("Local BLE update applied for %s (%s)", name, mac)
+                return
+
+        # No matched entity — store raw status anyway
+        results[mac] = status

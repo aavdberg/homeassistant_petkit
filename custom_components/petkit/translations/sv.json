@@ -598,43 +598,56 @@
     "step": {
       "init": {
         "data": {
+          "always_on_stream": "Alltid aktiv sändning",
           "region": "Region",
-          "scan_interval": "Standard avpollningsintervall (sekunder)",
-          "smart_polling": "Smart avpollning",
           "time_zone": "Tidszon"
         },
         "data_description": {
-          "smart_polling": "Smart avpollning justerar automatiskt avpollningsintervallet baserat på enhetens händelser/åtgärder."
+          "always_on_stream": "Håller den interna sändningssessionen förvärmad så att webbläsare, WHEP-klienter och strömmottagare kan ansluta snabbt. Sändningsströmmen kan även återanvändas av andra mottagare. Detta håller en aktiv session igång och använder mer enhets- och molnresurser."
         },
         "sections": {
           "bluetooth_options": {
             "data": {
-              "ble_relay_enabled": "Aktivera bluetooth-relä",
-              "scan_interval_bluetooth": "Bluetooth uppdateringsintervall (minuter)"
+              "ble_relay_enabled": "Aktivera Bluetooth-relä",
+              "scan_interval_bluetooth": "Bluetooth-uppdateringsintervall (minuter)"
             },
             "data_description": {
-              "ble_relay_enabled": "Om inaktiverad uppdateras fontänen endast när enheten uppdateras via appen."
+              "ble_relay_enabled": "Om inaktiverat sker fontänuppdateringar bara när enheten uppdateras via appen."
             },
-            "description": "Dessa alternativ är endast effektiva om du har en fontän och minst en enhet som kan fungera som ett bluetooth-relä (t.ex. utfodrare, kattlåda). Se Petkit-appen för mer information.",
+            "description": "Dessa alternativ är bara effektiva om du har en fontän och minst en enhet som kan fungera som Bluetooth-relä (t.ex. matare, kattlåda). Se Petkit-appen för mer information.",
             "name": "Bluetooth-alternativ"
+          },
+          "local_ble_options": {
+            "data": {
+              "local_ble_enabled": "Aktivera lokalt Bluetooth",
+              "local_ble_fountains": "Fontäner (lista av {{\"mac\": \"XX:XX:XX:XX:XX:XX\", \"name\": \"Min Fontän\"}})",
+              "local_ble_debug_log": "Aktivera felsökningslogg (petkit.log)"
+            },
+            "data_description": {
+              "local_ble_enabled": "Ansluter direkt till fontänen via Bluetooth (lokal adapter eller ESPHome Bluetooth-proxy). Kräver ingen Petkit-kontorelä.",
+              "local_ble_fountains": "Lista över fontäner att hämta via lokalt BLE. Varje post måste innehålla nyckeln 'mac' och valfritt nyckeln 'name'.",
+              "local_ble_debug_log": "Skriver detaljerad BLE-felsökningsinformation till /config/petkit.log. Inaktivera när det inte behövs för att minska diskskrivningar."
+            },
+            "description": "Direkt Bluetooth-anslutning till fontänen. Fungerar med lokala Bluetooth-adaptrar och ESPHome Bluetooth-proxys.",
+            "name": "Lokala Bluetooth-alternativ"
           },
           "medias_options": {
             "data": {
-              "delete_media_after": "Radera media efter (dagar)",
+              "delete_media_after": "Ta bort media efter (dagar)",
               "media_dl_image": "Hämta bilder",
               "media_dl_video": "Hämta videor",
               "media_ev_type": "Händelsetyp för nedladdning",
-              "media_path": "Mediaväg",
-              "scan_interval_media": "Uppdateringsintervall för media (minuter)"
+              "media_path": "Mediasökväg",
+              "scan_interval_media": "Medieuppdateringsintervall (minuter)"
             },
             "data_description": {
-              "delete_media_after": "Radera nedladdad media efter angivet antal dagar. (0 = radera aldrig)",
-              "media_dl_image": "Ladda ned alla bilder från dina enheter, filtrerade enligt de valda händelserna nedan (inget aktivt Care+-abonnemang krävs).",
-              "media_dl_video": "Ladda ned alla videor från dina enheter, filtrerade enligt de valda händelserna nedan. (kräver ett aktivt Care+-abonnemang)",
-              "media_path": "Sökväg där media kommer att lagras. Om ingen anges lagras media i /media-mappen i Home Assistant.",
-              "scan_interval_media": "Intervall för att ladda ned ny media (bilder och videor) från Petkits servrar."
+              "delete_media_after": "Ta bort nedladdat media efter angivet antal dagar. (0 = ta aldrig bort)",
+              "media_dl_image": "Ladda ner alla bilder från dina enheter, filtrerade efter valda händelser nedan (inget aktivt Care+-abonnemang krävs).",
+              "media_dl_video": "Ladda ner alla videor från dina enheter, filtrerade efter valda händelser nedan. (kräver ett aktivt Care+-abonnemang)",
+              "media_path": "Sökväg där media lagras. Om inte angiven lagras media i Home Assistants /media-mapp.",
+              "scan_interval_media": "Intervall för nedladdning av nytt media (bilder och videor) från Petkits servrar."
             },
-            "description": "Dessa alternativ är endast effektiva om du har minst en enhet (t.ex. utfodrare, kattlåda) som kan fånga bilder & videor",
+            "description": "Dessa alternativ är bara effektiva om du har minst en enhet (t.ex. matare, kattlåda) som kan ta bilder och videor.",
             "name": "Mediaalternativ"
           }
         },

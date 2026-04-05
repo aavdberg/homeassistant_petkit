@@ -1,7 +1,7 @@
 {
   "domain": "petkit",
   "name": "Petkit",
-  "after_dependencies": ["web_rtc", "go2rtc"],
+  "after_dependencies": ["web_rtc", "go2rtc", "bluetooth"],
   "codeowners": ["@Jezza34000"],
   "config_flow": true,
   "dependencies": ["http"],
