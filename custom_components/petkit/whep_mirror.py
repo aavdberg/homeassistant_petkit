@@ -27,11 +27,14 @@ from .webrtc_common import (
 try:
     # google-crc32c (pulled in by aiortc) emits a RuntimeWarning when its native
     # C extension is unavailable in the HA Docker environment and falls back to
-    # a pure-Python implementation. Suppress it here — it is harmless (streaming
-    # continues to work) and would otherwise pollute the HA log on every startup.
+    # a pure-Python implementation. Suppress only that known harmless warning
+    # here so unexpected RuntimeWarnings from the same module remain visible.
     with warnings.catch_warnings():
         warnings.filterwarnings(
-            "ignore", category=RuntimeWarning, module="google_crc32c"
+            "ignore",
+            message=r".*(?:pure[- ]Python implementation|using a python implementation).*",
+            category=RuntimeWarning,
+            module=r"^google_crc32c(?:\..+)?$",
         )
         from aiortc import (
             RTCConfiguration,
