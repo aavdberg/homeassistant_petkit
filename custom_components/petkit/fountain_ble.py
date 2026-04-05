@@ -315,20 +315,8 @@ class LocalFountainBleProtocol:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def update_water_fountain(device: Any, status: dict[str, Any]) -> None:
-        """Apply a BLE status dict to a WaterFountain Pydantic model instance."""
-        from pypetkitapi.water_fountain_container import Electricity, Status
-
-        # Ensure sub-models exist
-        if device.status is None:
-            device.status = Status()
-        if device.electricity is None:
-            device.electricity = Electricity()
-
-        s = device.status
-        e = device.electricity
-
-        # Status sub-model
+    def _update_status_fields(s: Any, status: dict[str, Any]) -> None:
+        """Apply BLE status keys to the Status sub-model."""
         if "power_status" in status:
             s.power_status = status["power_status"]
         if "suspend_status" in status:
@@ -340,7 +328,29 @@ class LocalFountainBleProtocol:
         if "running_status" in status:
             s.run_status = status["running_status"]
 
-        # Top-level WaterFountain fields
+    @staticmethod
+    def _update_electricity_fields(e: Any, status: dict[str, Any]) -> None:
+        """Apply BLE status keys to the Electricity sub-model."""
+        if "battery_percentage" in status:
+            e.battery_percent = status["battery_percentage"]
+        if "battery_voltage" in status:
+            e.battery_voltage = status["battery_voltage"]
+        if "supply_voltage" in status:
+            e.supply_voltage = status["supply_voltage"]
+
+    @staticmethod
+    def update_water_fountain(device: Any, status: dict[str, Any]) -> None:
+        """Apply a BLE status dict to a WaterFountain Pydantic model instance."""
+        from pypetkitapi.water_fountain_container import Electricity, Status
+
+        if device.status is None:
+            device.status = Status()
+        if device.electricity is None:
+            device.electricity = Electricity()
+
+        LocalFountainBleProtocol._update_status_fields(device.status, status)
+        LocalFountainBleProtocol._update_electricity_fields(device.electricity, status)
+
         if "mode" in status:
             device.mode = status["mode"]
         if "warning_water_missing" in status:
@@ -357,14 +367,6 @@ class LocalFountainBleProtocol:
             device.water_pump_run_time = status["pump_runtime"]
         if "module_status" in status:
             device.module_status = status["module_status"]
-
-        # Electricity sub-model
-        if "battery_percentage" in status:
-            e.battery_percent = status["battery_percentage"]
-        if "battery_voltage" in status:
-            e.battery_voltage = status["battery_voltage"]
-        if "supply_voltage" in status:
-            e.supply_voltage = status["supply_voltage"]
 
     # ------------------------------------------------------------------
     # Private helpers
@@ -662,107 +664,13 @@ class FountainBleClient:
                 err,
             )
 
-        # Proactive status captured during the CMD 213 wait window.
         if self._last_status is not None:
             _LOGGER.debug("Using proactive status for %s", self.mac_address)
             await self._disconnect()
             return self._last_status
 
         if self._alias == "CTW3":
-            # CTW3 primary poll: CMD 210 (device state, type=1, data=[0,0]).
-            # CMD 230 (combined state+config) does NOT respond on CTW3_100;
-            # CMD 210 responds immediately and carries the same state fields.
-            state_cmd = self._protocol.get_device_state_command()
-            _LOGGER.debug(
-                "CTW3 polling CMD 210 (state) for %s: %s",
-                self.mac_address,
-                state_cmd.hex(),
-            )
-            self._notification_event.clear()
-            try:
-                await self._write(state_cmd)
-            except RuntimeError as err:
-                _LOGGER.warning("CTW3 CMD 210 write failed: %s", err)
-            else:
-                deadline = asyncio.get_running_loop().time() + 5.0
-                while self._last_status is None:
-                    remaining = deadline - asyncio.get_running_loop().time()
-                    if remaining <= 0:
-                        break
-                    self._notification_event.clear()
-                    try:
-                        await asyncio.wait_for(
-                            self._notification_event.wait(), min(remaining, 1.0)
-                        )
-                    except asyncio.TimeoutError:
-                        continue
-
-            # Also poll CMD 211 to get config data (LED, DND, smart times).
-            if self._last_status is not None:
-                config_cmd = self._protocol.get_device_config_command()
-                _LOGGER.debug(
-                    "CTW3 polling CMD 211 (config) for %s: %s",
-                    self.mac_address,
-                    config_cmd.hex(),
-                )
-                self._notification_event.clear()
-                try:
-                    await self._write(config_cmd)
-                    deadline = asyncio.get_running_loop().time() + 3.0
-                    while True:
-                        remaining = deadline - asyncio.get_running_loop().time()
-                        if remaining <= 0:
-                            break
-                        self._notification_event.clear()
-                        try:
-                            await asyncio.wait_for(
-                                self._notification_event.wait(), min(remaining, 1.0)
-                            )
-                        except asyncio.TimeoutError:
-                            continue
-                        break  # any notification received — move on
-                except RuntimeError as err:
-                    _LOGGER.warning("CTW3 CMD 211 write failed: %s", err)
-
-            # Fallback: CMD 230 (type=2) if CMD 210 didn't respond.
-            if self._last_status is None:
-                status_cmd = self._protocol.get_status_command()
-                _LOGGER.warning(
-                    "CTW3 CMD 210 no response — trying CMD 230 (type=2) for %s: %s",
-                    self.mac_address,
-                    status_cmd.hex(),
-                )
-                self._notification_event.clear()
-                try:
-                    await self._write(status_cmd)
-                except RuntimeError as err:
-                    _LOGGER.warning("CTW3 CMD 230 write failed: %s", err)
-                else:
-                    deadline = asyncio.get_running_loop().time() + 5.0
-                    while self._last_status is None:
-                        remaining = deadline - asyncio.get_running_loop().time()
-                        if remaining <= 0:
-                            break
-                        self._notification_event.clear()
-                        try:
-                            await asyncio.wait_for(
-                                self._notification_event.wait(), min(remaining, 1.0)
-                            )
-                        except asyncio.TimeoutError:
-                            continue
-
-            if self._last_status is not None:
-                _LOGGER.debug("CTW3 status received for %s", self.mac_address)
-                await self._disconnect()
-                return self._last_status
-
-            _LOGGER.warning(
-                "No status received for CTW3 %s after CMD 210 + CMD 230",
-                self.mac_address,
-            )
-            await self._log_readable_gatt_chars()
-            await self._disconnect()
-            return None
+            return await self._async_get_ctw3_status()
 
         # Non-CTW3 models: poll status explicitly after auth (CMD 230).
         try:
@@ -774,6 +682,105 @@ class FountainBleClient:
 
         await self._disconnect()
         return status
+
+    async def _async_get_ctw3_status(self) -> dict[str, Any] | None:
+        """Poll status for CTW3 / Eversweet Max 2.
+
+        Tries CMD 210 (primary), then CMD 211 (config merge), then CMD 230
+        (fallback). Disconnects before returning in all cases.
+        """
+        # Primary poll: CMD 210 (device state).
+        state_cmd = self._protocol.get_device_state_command()
+        _LOGGER.debug(
+            "CTW3 polling CMD 210 (state) for %s: %s",
+            self.mac_address,
+            state_cmd.hex(),
+        )
+        self._notification_event.clear()
+        try:
+            await self._write(state_cmd)
+        except RuntimeError as err:
+            _LOGGER.warning("CTW3 CMD 210 write failed: %s", err)
+        else:
+            await self._async_poll_for_status(timeout=5.0)
+
+        # If state arrived, also fetch config (CMD 211) to merge LED/DND fields.
+        if self._last_status is not None:
+            await self._async_poll_config_cmd211()
+
+        # Fallback: CMD 230 if CMD 210 gave no response.
+        if self._last_status is None:
+            await self._async_ctw3_fallback_cmd230()
+
+        if self._last_status is not None:
+            _LOGGER.debug("CTW3 status received for %s", self.mac_address)
+            await self._disconnect()
+            return self._last_status
+
+        _LOGGER.warning(
+            "No status received for CTW3 %s after CMD 210 + CMD 230",
+            self.mac_address,
+        )
+        await self._log_readable_gatt_chars()
+        await self._disconnect()
+        return None
+
+    async def _async_poll_for_status(self, timeout: float) -> None:
+        """Wait up to *timeout* seconds for a status notification to arrive."""
+        deadline = asyncio.get_running_loop().time() + timeout
+        while self._last_status is None:
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                break
+            self._notification_event.clear()
+            try:
+                async with asyncio.timeout(min(remaining, 1.0)):
+                    await self._notification_event.wait()
+            except asyncio.TimeoutError:
+                continue
+
+    async def _async_poll_config_cmd211(self) -> None:
+        """Send CMD 211 (config) and wait for any notification to arrive."""
+        config_cmd = self._protocol.get_device_config_command()
+        _LOGGER.debug(
+            "CTW3 polling CMD 211 (config) for %s: %s",
+            self.mac_address,
+            config_cmd.hex(),
+        )
+        self._notification_event.clear()
+        try:
+            await self._write(config_cmd)
+        except RuntimeError as err:
+            _LOGGER.warning("CTW3 CMD 211 write failed: %s", err)
+            return
+        deadline = asyncio.get_running_loop().time() + 3.0
+        while True:
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                break
+            self._notification_event.clear()
+            try:
+                async with asyncio.timeout(min(remaining, 1.0)):
+                    await self._notification_event.wait()
+            except asyncio.TimeoutError:
+                continue
+            break  # any notification received — move on
+
+    async def _async_ctw3_fallback_cmd230(self) -> None:
+        """Send CMD 230 (type=2) as a fallback when CMD 210 gave no response."""
+        status_cmd = self._protocol.get_status_command()
+        _LOGGER.warning(
+            "CTW3 CMD 210 no response — trying CMD 230 (type=2) for %s: %s",
+            self.mac_address,
+            status_cmd.hex(),
+        )
+        self._notification_event.clear()
+        try:
+            await self._write(status_cmd)
+        except RuntimeError as err:
+            _LOGGER.warning("CTW3 CMD 230 write failed: %s", err)
+            return
+        await self._async_poll_for_status(timeout=5.0)
 
     async def async_set_mode(self, power_state: int, mode: int) -> bool:
         """Connect, send a mode change command, disconnect."""
@@ -1016,9 +1023,8 @@ class FountainBleClient:
                 break
             self._notification_event.clear()
             try:
-                await asyncio.wait_for(
-                    self._notification_event.wait(), min(remaining, 2.0)
-                )
+                async with asyncio.timeout(min(remaining, 2.0)):
+                    await self._notification_event.wait()
             except asyncio.TimeoutError:
                 continue  # keep looping until deadline
 
@@ -1041,7 +1047,8 @@ class FountainBleClient:
         faster than this method is reached.
         """
         try:
-            await asyncio.wait_for(self._notification_event.wait(), timeout)
+            async with asyncio.timeout(timeout):
+                await self._notification_event.wait()
         except asyncio.TimeoutError:
             _LOGGER.debug("BLE notification timeout for %s", self.mac_address)
 

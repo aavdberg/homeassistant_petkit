@@ -357,8 +357,6 @@ class PetkitLocalBleCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Poll all configured local BLE fountains and update entity data."""
-        from pypetkitapi import WaterFountain
-
         from .const import (
             CONF_LOCAL_BLE_DEBUG,
             CONF_LOCAL_BLE_ENABLED,
@@ -389,26 +387,9 @@ class PetkitLocalBleCoordinator(DataUpdateCoordinator):
                 if status is None:
                     LOGGER.warning("No BLE status received from %s (%s)", name, mac)
                     continue
-
-                # Find matching WaterFountain entity and update its fields
-                for device in self.config.runtime_data.client.petkit_entities.values():
-                    if isinstance(device, WaterFountain):
-                        if (
-                            getattr(device, "ble_mac", None) == mac
-                            or getattr(device, "mac", None) == mac
-                        ):
-                            LocalFountainBleProtocol.update_water_fountain(
-                                device, status
-                            )
-                            results[mac] = status
-                            LOGGER.debug(
-                                "Local BLE update applied for %s (%s)", name, mac
-                            )
-                            break
-                else:
-                    # No matched entity — store raw status anyway
-                    results[mac] = status
-
+                self._apply_ble_update_to_entities(
+                    mac, name, status, results, LocalFountainBleProtocol
+                )
             except Exception as err:  # noqa: BLE001
                 LOGGER.error("Local BLE poll failed for %s (%s): %s", name, mac, err)
 
@@ -419,3 +400,27 @@ class PetkitLocalBleCoordinator(DataUpdateCoordinator):
             self.data_coordinator.async_update_listeners()
 
         return results
+
+    def _apply_ble_update_to_entities(
+        self,
+        mac: str,
+        name: str,
+        status: dict[str, Any],
+        results: dict[str, Any],
+        protocol_cls: Any,
+    ) -> None:
+        """Find the matching WaterFountain entity and apply BLE status to it."""
+        from pypetkitapi import WaterFountain
+
+        for device in self.config.runtime_data.client.petkit_entities.values():
+            if isinstance(device, WaterFountain) and (
+                getattr(device, "ble_mac", None) == mac
+                or getattr(device, "mac", None) == mac
+            ):
+                protocol_cls.update_water_fountain(device, status)
+                results[mac] = status
+                LOGGER.debug("Local BLE update applied for %s (%s)", name, mac)
+                return
+
+        # No matched entity — store raw status anyway
+        results[mac] = status

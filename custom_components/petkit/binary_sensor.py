@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pypetkitapi import (
     D3,
@@ -44,6 +44,22 @@ class PetKitBinarySensorDesc(PetKitDescSensorBase, BinarySensorEntityDescription
     """A class that describes sensor entities."""
 
     enable_fast_poll: bool = False
+
+
+def _is_pump_running(device: Any) -> bool | None:
+    """Return whether the fountain pump is currently running.
+
+    CTW3 uses suspend_status (0=running, 1=paused).
+    W4/W5/CTW2 use run_status > 0.
+    Returns False if the device is powered off, None if state is unknown.
+    """
+    if device.status.power_status == 0:
+        return False
+    if device.status.suspend_status is not None:
+        return device.status.suspend_status == 0
+    if device.status.run_status is None:
+        return None
+    return device.status.run_status > 0
 
 
 COMMON_ENTITIES = [
@@ -250,21 +266,7 @@ BINARY_SENSOR_MAPPING: dict[type[PetkitDevices], list[PetKitBinarySensorDesc]] =
             key="Pump running",
             translation_key="pump_running",
             device_class=BinarySensorDeviceClass.RUNNING,
-            value=lambda device: (
-                False
-                if device.status.power_status == 0
-                else (
-                    # CTW3 uses suspend_status: 0=running, 1=paused.
-                    # Other models (W4/W5/CTW2) use run_status > 0.
-                    device.status.suspend_status == 0
-                    if device.status.suspend_status is not None
-                    else (
-                        None
-                        if device.status.run_status is None
-                        else device.status.run_status > 0
-                    )
-                )
-            ),
+            value=_is_pump_running,
         ),
     ],
     Purifier: [
