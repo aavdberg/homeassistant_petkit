@@ -76,18 +76,17 @@ def get_raw_schedule(feeder) -> dict[str, any] | None:
 
     days = []
     for day in multi.feed_daily_list:
-        items = []
-        for item in day.items or []:
-            items.append(
-                {
-                    "time": getattr(item, "time", None),
-                    "name": getattr(item, "name", None),
-                    "amount": getattr(item, "amount", None),
-                    "amount1": getattr(item, "amount1", None),
-                    "amount2": getattr(item, "amount2", None),
-                    "id": getattr(item, "id", None),
-                }
-            )
+        items = [
+            {
+                "time": getattr(item, "time", None),
+                "name": getattr(item, "name", None),
+                "amount": getattr(item, "amount", None),
+                "amount1": getattr(item, "amount1", None),
+                "amount2": getattr(item, "amount2", None),
+                "id": getattr(item, "id", None),
+            }
+            for item in day.items or []
+        ]
         days.append(
             {
                 "repeats": getattr(day, "repeats", None),
