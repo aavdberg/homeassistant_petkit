@@ -1,0 +1,44 @@
+set_feeding_schedule:
+  name: Set feeding schedule
+  description: >
+    Replace the full feeding schedule on a Petkit feeder.
+    Each entry in feed_daily_list represents one day of the week (repeats 1-7 = Mon-Sun).
+    For dual-hopper feeders (D4S / D4SH), use amount1 and amount2.
+    For single-hopper feeders, use amount.
+    Time is in seconds since midnight (e.g. 21600 = 06:00, 43200 = 12:00).
+  fields:
+    device_id:
+      name: Device ID
+      description: The numeric Petkit device ID of the feeder.
+      required: true
+      example: 10014481
+      selector:
+        number:
+          min: 1
+          mode: box
+    feed_daily_list:
+      name: Feed daily list
+      description: >
+        A list of day schedules. Each day has a repeats value (1-7 for Mon-Sun),
+        a suspended flag (0=active, 1=suspended), and an items list.
+        Each item has: time (seconds since midnight), name (string),
+        amount (single hopper), amount1 (hopper 1), amount2 (hopper 2).
+      required: true
+      example:
+        - repeats: 1
+          suspended: 0
+          items:
+            - time: 21600
+              name: Breakfast
+              amount1: 3
+              amount2: 3
+            - time: 43200
+              name: Lunch
+              amount1: 2
+              amount2: 2
+            - time: 75600
+              name: Dinner
+              amount1: 5
+              amount2: 5
+      selector:
+        object:

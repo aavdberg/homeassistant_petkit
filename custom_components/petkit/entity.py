@@ -30,6 +30,7 @@ class PetKitDescSensorBase(EntityDescription):
     """A class that describes sensor entities."""
 
     value: Callable[[_DevicesT], Any] | None = None
+    attributes: Callable[[_DevicesT], dict[str, Any] | None] | None = None
     ignore_types: list[str] | None = None  # List of device types to ignore
     only_for_types: list[str] | None = None  # List of device types to support
     force_add: list[str] | None = None

@@ -62,6 +62,115 @@ def map_work_state(work_state: WorkState | None) -> str:
     return _WORK_MODE_MAPPING.get(work_state.work_mode, lambda: "idle")()
 
 
+def get_raw_schedule(feeder) -> dict[str, any] | None:
+    """Get the full 7-day feeding schedule with per-hopper amounts.
+
+    Returns a dict suitable for extra_state_attributes containing:
+      - device_id: int
+      - feed_daily_list: list of day objects, each with items preserving
+        amount1/amount2 for dual-hopper round-trip editing.
+    """
+    multi = getattr(feeder, "multi_feed_item", None)
+    if multi is None or multi.feed_daily_list is None:
+        return None
+
+    days = []
+    for day in multi.feed_daily_list:
+        items = [
+            {
+                "time": getattr(item, "time", None),
+                "name": getattr(item, "name", None),
+                "amount": getattr(item, "amount", None),
+                "amount1": getattr(item, "amount1", None),
+                "amount2": getattr(item, "amount2", None),
+                "id": getattr(item, "id", None),
+            }
+            for item in day.items or []
+        ]
+        days.append(
+            {
+                "repeats": getattr(day, "repeats", None),
+                "suspended": getattr(day, "suspended", None),
+                "count": len(items),
+                "items": items,
+            }
+        )
+
+    return {
+        "device_id": feeder.id,
+        "feed_daily_list": days,
+    }
+
+
+def get_raw_feed_plan_from_schedule(feeder) -> str | None:
+    """Get the feed plan from the schedule definition (multi_feed_item).
+
+    Unlike get_raw_feed_plan() which uses the execution log (growing unbounded),
+    this reads the fixed-size schedule definition and cross-references with
+    execution records for live status. Always under 255 chars for HA state limit.
+
+    :param feeder: Feeder device object
+    :return: A string with the feed plan in the format "id,hours,minutes,amount,state"
+    """
+    multi = getattr(feeder, "multi_feed_item", None)
+    if multi is None or multi.feed_daily_list is None:
+        return None
+
+    # Use first day's schedule definition (all days share the same items)
+    day = multi.feed_daily_list[0] if multi.feed_daily_list else None
+    if day is None or not day.items:
+        return None
+
+    # Build execution status lookup from device_records.feed
+    # Key: time_in_seconds → status code
+    status_lookup = {}
+    records = getattr(feeder, "device_records", None)
+    if records and getattr(records, "feed", None):
+        now = datetime.now()
+        current_seconds = now.hour * 3600 + now.minute * 60 + now.second
+
+        for feed in records.feed:
+            for item in feed.items or []:
+                t = getattr(item, "time", 0) or 0
+                src = getattr(item, "src", 0) or 0
+                status_val = getattr(item, "status", 0) or 0
+                item_state = getattr(item, "state", None)
+
+                state = 0  # pending
+                if item_state is None and status_val == 0 and t < current_seconds:
+                    state = 6  # unknown / past due
+                elif status_val == 1:
+                    state = 7  # cancelled
+                elif item_state is not None:
+                    err_code = getattr(item_state, "err_code", -1)
+                    result_code = getattr(item_state, "result", -1)
+                    if err_code == 0 and result_code == 0:
+                        state = {1: 1, 3: 2, 4: 3}.get(src, 1)
+                    elif err_code == 10 and result_code == 8:
+                        state = 8  # skipped
+                    else:
+                        state = 9  # error
+                # Only store if we have a definitive status (not just pending)
+                if state != 0 or t not in status_lookup:
+                    status_lookup[t] = state
+
+    # Generate state string from schedule definition
+    result = []
+    for idx, item in enumerate(day.items):
+        t = getattr(item, "time", 0) or 0
+        hours = t // 3600
+        minutes = (t % 3600) // 60
+        a1 = getattr(item, "amount1", 0) or 0
+        a2 = getattr(item, "amount2", 0) or 0
+        amount = getattr(item, "amount", None)
+        if amount is None or amount == 0:
+            amount = a1 + a2
+        state = status_lookup.get(t, 0)
+        result.append(f"{idx},{hours},{minutes},{amount},{state}")
+
+    return ",".join(result) if result else None
+
+
 def get_raw_feed_plan(feeder_records_data) -> str | None:
     """Get the raw feed plan from feeder data.
 
