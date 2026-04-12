@@ -11,12 +11,12 @@
                     "password": "Lösenord",
                     "region": "Region",
                     "time_zone": "Tidszon",
-                    "username": "Användarnamn/Id"
+                    "username": "Användarnamn/ID"
                 },
                 "data_description": {
                     "region": "Detta fält fylls i automatiskt baserat på din Home Assistant-konfiguration. Om du har en annan region, välj den från listan.",
                     "time_zone": "Detta fält fylls i automatiskt baserat på din Home Assistant-konfiguration. Om du har en annan tidszon, välj den från listan.",
-                    "username": "Ange e-postadressen för ditt PetKit-konto, eller id om du är en kinesisk användare"
+                    "username": "Ange e-postadressen för ditt PetKit-konto, eller ID om du är en kinesisk användare"
                 },
                 "description": "Ange uppgifterna för ditt PetKit-konto. Använd inte samma konto som du använder i appen. Läs dokumentationen för mer information."
             }
@@ -37,7 +37,7 @@
                 "name": "Care+ prenumeration"
             },
             "deodorizer": {
-                "name": "Deodoriserare"
+                "name": "Luktborttagare"
             },
             "eating": {
                 "name": "Äter"
@@ -55,7 +55,7 @@
                 "name": "Matnivå fack 2"
             },
             "frequent_use": {
-                "name": "Ofta användningsdetektering"
+                "name": "Detektering av frekvent användning"
             },
             "lack_warning": {
                 "name": "Vattenbristvarning"
@@ -103,7 +103,7 @@
                 "name": "Vattennivå"
             },
             "abnormal_ph_detected": {
-                "name": "Onormalt pH-värde detekterat"
+                "name": "Onormalt pH-värde upptäckt"
             },
             "weight_error": {
                 "name": "Vikt felaktig"
@@ -132,7 +132,7 @@
                 "name": "Avbryt manuell matning"
             },
             "deodorize": {
-                "name": "Deodorisera"
+                "name": "Ta bort lukt"
             },
             "dump_litter": {
                 "name": "Töm kattsand"
@@ -238,7 +238,7 @@
                 "name": "Dagar kvar för deodoriserare"
             },
             "deodorizer_level": {
-                "name": "Deodoriseringsnivå"
+                "name": "Nivå för deodoriseringsvätska"
             },
             "desiccant_left_days": {
                 "name": "Dagar kvar av torkmedel"
@@ -286,7 +286,7 @@
                 "name": "Senast använd av"
             },
             "litter_last_event": {
-                "name": "Senaste händelse",
+                "name": "Senaste händelsen",
                 "state": {
                     "auto_cleaning_canceled": "Automatisk rengöring avbruten",
                     "auto_cleaning_canceled_kitten": "Automatisk rengöring avbruten: kattunge",
@@ -297,8 +297,8 @@
                     "auto_cleaning_terminated": "Automatisk rengöring avbruten",
                     "auto_odor_failed": "Automatisk luktborttagning misslyckades",
                     "clean_over": "Rengöring klar",
-                    "deodorant_finished": "Deodoriserare avslutad",
-                    "deodorant_finished_liquid_lack": "Deodoriserare avslutad: vätskebrist",
+                    "deodorant_finished": "Luktborttagning slutförd",
+                    "deodorant_finished_liquid_lack": "Luktborttagning slutförd: vätskebrist",
                     "light_over": "Ljus",
                     "litter_empty_completed": "Tömning av kattsand slutförd",
                     "litter_empty_failed_full": "Tömning av kattsand misslyckades: full",
@@ -321,7 +321,7 @@
                     "periodic_odor_completed": "Periodisk luktborttagning slutförd",
                     "periodic_odor_completed_liquid_lack": "Periodisk luktborttagning slutförd: vätskebrist",
                     "periodic_odor_failed": "Periodisk luktborttagning misslyckades",
-                    "pet_detect": "Husdjur upptäckt",
+                    "pet_detect": "Husdjur närmar sig",
                     "pet_out": "Husdjur gick ut",
                     "reset_completed": "Återställning slutförd",
                     "reset_failed_full": "Återställning misslyckades: full",
@@ -332,7 +332,7 @@
                     "scheduled_cleaning_failed_full": "Schemalagd rengöring misslyckades: full",
                     "scheduled_cleaning_failed_hall_l": "Schemalagd rengöring misslyckades: hall L",
                     "scheduled_cleaning_failed_hall_t": "Schemalagd rengöring misslyckades: hall T",
-                    "spray_over": "Deodorisera"
+                    "spray_over": "Luktborttagning klar"
                 }
             },
             "litter_level": {
@@ -342,7 +342,7 @@
                 "name": "Status",
                 "state": {
                     "calibrating": "Kalibrerar",
-                    "cleaning": "Rengör",
+                    "cleaning": "Rengöring",
                     "cleaning_paused": "Rengöring pausad",
                     "cleaning_paused_cover": "Rengöring pausad - Lock",
                     "cleaning_paused_pet_approach": "Rengöring pausad - Husdjur nära",
@@ -356,7 +356,7 @@
                     "dumping_paused_pet_entered": "Tömning pausad - Husdjur i",
                     "dumping_paused_pet_using": "Tömning pausad - Husdjur använder",
                     "dumping_paused_system_error": "Tömning pausad - Systemfel",
-                    "idle": "Inaktiv",
+                    "idle": "Väntar",
                     "leveling": "Jämnar ut",
                     "maintenance": "Underhåll",
                     "maintenance_paused": "Underhåll pausad",
@@ -380,16 +380,16 @@
                 "name": "Kattsandsvikt"
             },
             "manual_dispensed": {
-                "name": "Manuellt utdelad"
+                "name": "Manuellt utdelat"
             },
             "manual_dispensed_hopper_1": {
-                "name": "Manuellt utdelad fack 1"
+                "name": "Manuellt utdelat i fack 1"
             },
             "manual_dispensed_hopper_2": {
-                "name": "Manuellt utdelad fack 2"
+                "name": "Manuellt utdelat i fack 2"
             },
             "package_used": {
-                "name": "Förpackning använd"
+                "name": "Förbrukade påsar"
             },
             "pet_last_device_used": {
                 "name": "Senast använda låda"
@@ -398,7 +398,7 @@
                 "name": "Senaste användningsdatum"
             },
             "pet_last_use_duration": {
-                "name": "Senaste användningstid"
+                "name": "Senaste användningens varaktighet"
             },
             "pet_last_weight_measurement": {
                 "name": "Senaste viktmätning"
@@ -419,7 +419,7 @@
                 "name": "Reningsvätska"
             },
             "raw_distribution_data": {
-                "name": "RÅ-data för utdelning"
+                "name": "Rådata för utdelning"
             },
             "rssi": {
                 "name": "RSSI"
@@ -478,6 +478,12 @@
                     "not_available": "Inte tillgänglig",
                     "not_installed": "Inte installerad"
                 }
+            },
+            "device_id": {
+                "name": "Enhets-ID"
+            },
+            "last_bag_replacement_time": {
+                "name": "Senaste påsbyte"
             }
         },
         "switch": {
@@ -503,7 +509,7 @@
                 "name": "Djup rengöring"
             },
             "deep_deodor": {
-                "name": "Djup deodoriserare"
+                "name": "Djup luktborttagning"
             },
             "deodorant_notify": {
                 "name": "Notifiering vid behov av deodoriserarbyte"
@@ -542,10 +548,10 @@
                 "name": "Notifiering vid brist på kattsand"
             },
             "light": {
-                "name": "Ljussättning"
+                "name": "Belysning"
             },
             "light_weight": {
-                "name": "Lätt vikt"
+                "name": "Undervikt"
             },
             "litter_full_notify": {
                 "name": "Notifiering vid full avfallsbehållare"
@@ -572,7 +578,7 @@
                 "name": "Notifiering vid ätning"
             },
             "pet_in_notify": {
-                "name": "Notifiering vid husdjurs toalettbesök"
+                "name": "Notifiering vid toalettbesök"
             },
             "pet_tracking": {
                 "name": "Husdjursövervakning"
