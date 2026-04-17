@@ -75,9 +75,6 @@ class PetkitOptionsFlowHandler(OptionsFlow):
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Required(
-                        default=self.config_entry.options.get(),
-                    ): BooleanSelector(BooleanSelectorConfig()),
                     vol.Required(MEDIA_SECTION): section(
                         vol.Schema(
                             {
