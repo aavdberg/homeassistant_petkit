@@ -5,7 +5,9 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
-from pypetkitapi import PetKitClient
+from pypetkitapi import Feeder, PetKitClient
+from pypetkitapi.command import FeederCommand
+import voluptuous as vol
 
 from homeassistant.const import (
     CONF_PASSWORD,
@@ -14,7 +16,8 @@ from homeassistant.const import (
     CONF_USERNAME,
     Platform,
 )
-from homeassistant.helpers import device_registry as dr
+from homeassistant.core import ServiceCall
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.loader import async_get_loaded_integration
 
@@ -43,10 +46,13 @@ from .coordinator import (
 )
 from .data import PetkitData
 from .iot_mqtt import PetkitIotMqttListener
-from .whep_mirror import (
-    PetkitInternalWhepMirrorView,
-    PetkitWhepMirrorView,
-    async_cleanup_whep_mirror_sessions,
+from .notifications import PetkitNotificationManager
+from .whep_proxy import (
+    PetkitDirectWhepProxySessionView,
+    PetkitDirectWhepProxyView,
+    PetkitUpstreamWhepSessionView,
+    PetkitUpstreamWhepView,
+    async_cleanup_whep_proxy_sessions,
 )
 
 if TYPE_CHECKING:
@@ -68,6 +74,114 @@ PLATFORMS: list[Platform] = [
     Platform.FAN,
 ]
 
+SERVICE_SET_FEEDING_SCHEDULE = "set_feeding_schedule"
+
+FEED_ITEM_SCHEMA = vol.Schema(
+    {
+        vol.Required("time"): vol.All(int, vol.Range(min=0)),
+        vol.Required("name"): cv.string,
+        vol.Optional("amount", default=0): vol.Coerce(int),
+        vol.Optional("amount1", default=0): vol.Coerce(int),
+        vol.Optional("amount2", default=0): vol.Coerce(int),
+    }
+)
+
+FEED_DAY_SCHEMA = vol.Schema(
+    {
+        vol.Required("repeats"): vol.Any(cv.positive_int, cv.string),
+        vol.Required("items"): vol.All(cv.ensure_list, [FEED_ITEM_SCHEMA]),
+        vol.Optional("suspended", default=0): vol.Coerce(int),
+    }
+)
+
+SERVICE_SET_FEEDING_SCHEDULE_SCHEMA = vol.Schema(
+    {
+        vol.Required("device_id"): vol.Coerce(int),
+        vol.Required("feed_daily_list"): vol.All(cv.ensure_list, [FEED_DAY_SCHEMA]),
+    }
+)
+
+
+def _build_feed_daily_list(feed_daily_list: list[dict]) -> list[dict]:
+    """Transform the user-friendly service call data into the Petkit API format.
+
+    Adds computed fields (count, totalAmount, totalAmount1, totalAmount2) and
+    normalizes each feed item to include all required API fields with defaults.
+    """
+    result = []
+    for day in feed_daily_list:
+        items = []
+        total_amount = 0
+        total_amount1 = 0
+        total_amount2 = 0
+        for item in day["items"]:
+            amount = item.get("amount", 0)
+            amount1 = item.get("amount1", 0)
+            amount2 = item.get("amount2", 0)
+            total_amount += amount
+            total_amount1 += amount1
+            total_amount2 += amount2
+            items.append(
+                {
+                    "amount": amount,
+                    "amount1": amount1,
+                    "amount2": amount2,
+                    "deviceId": 0,
+                    "deviceType": 0,
+                    "id": item["time"],
+                    "name": item["name"],
+                    "petAmount": [],
+                    "time": item["time"],
+                }
+            )
+        result.append(
+            {
+                "count": len(items),
+                "items": items,
+                "repeats": str(day["repeats"]),
+                "suspended": day.get("suspended", 0),
+                "totalAmount": total_amount,
+                "totalAmount1": total_amount1,
+                "totalAmount2": total_amount2,
+            }
+        )
+    return result
+
+
+async def _async_handle_set_feeding_schedule(
+    hass: HomeAssistant, call: ServiceCall
+) -> None:
+    """Handle the set_feeding_schedule service call."""
+    device_id = call.data["device_id"]
+    feed_daily_list = call.data["feed_daily_list"]
+
+    # Find the client that owns this device
+    client: PetKitClient | None = None
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        if hasattr(entry, "runtime_data") and entry.runtime_data:
+            candidate = entry.runtime_data.client
+            if device_id in candidate.petkit_entities:
+                device = candidate.petkit_entities[device_id]
+                if isinstance(device, Feeder):
+                    client = candidate
+                    break
+
+    if client is None:
+        raise ValueError(
+            f"Feeder with device_id {device_id} not found. "
+            "Ensure the device_id matches a registered Petkit feeder."
+        )
+
+    api_payload = _build_feed_daily_list(feed_daily_list)
+
+    LOGGER.debug(
+        "Setting feeding schedule for device %s with %d day(s)",
+        device_id,
+        len(api_payload),
+    )
+
+    await client.send_api_request(device_id, FeederCommand.SAVE_FEED, api_payload)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -76,8 +190,10 @@ async def async_setup_entry(
     """Set up this integration using UI."""
 
     # Register API views once (idempotent — HA deduplicates by name)
-    hass.http.register_view(PetkitInternalWhepMirrorView())
-    hass.http.register_view(PetkitWhepMirrorView())
+    hass.http.register_view(PetkitDirectWhepProxyView())
+    hass.http.register_view(PetkitDirectWhepProxySessionView())
+    hass.http.register_view(PetkitUpstreamWhepView())
+    hass.http.register_view(PetkitUpstreamWhepSessionView())
 
     country_from_ha = hass.config.country
     tz_from_ha = hass.config.time_zone
@@ -155,6 +271,14 @@ async def async_setup_entry(
     entry.runtime_data.mqtt_listener = mqtt_listener
     await mqtt_listener.async_start()
 
+    # Notifications
+    notification_manager = PetkitNotificationManager(
+        hass=hass,
+        coordinator=coordinator,
+    )
+    await notification_manager.async_start()
+    entry.runtime_data.notification_manager = notification_manager
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
@@ -165,6 +289,20 @@ async def async_setup_entry(
     hass.data[DOMAIN][COORDINATOR_MEDIA] = coordinator_media
     hass.data[DOMAIN][COORDINATOR_BLUETOOTH] = coordinator_bluetooth
     hass.data[DOMAIN][COORDINATOR_LOCAL_BLE] = coordinator_local_ble
+
+    # Register services (idempotent — only registers once per domain)
+    if not hass.services.has_service(DOMAIN, SERVICE_SET_FEEDING_SCHEDULE):
+
+        async def handle_set_feeding_schedule(call: ServiceCall) -> None:
+            """Wrapper so HA detects this as a coroutine function."""
+            await _async_handle_set_feeding_schedule(hass, call)
+
+        hass.services.async_register(
+            DOMAIN,
+            SERVICE_SET_FEEDING_SCHEDULE,
+            handle_set_feeding_schedule,
+            schema=SERVICE_SET_FEEDING_SCHEDULE_SCHEMA,
+        )
 
     return True
 
@@ -178,7 +316,11 @@ async def async_unload_entry(
     if mqtt_listener is not None:
         await mqtt_listener.async_stop()
 
-    await async_cleanup_whep_mirror_sessions(hass)
+    await async_cleanup_whep_proxy_sessions(hass)
+
+    notification_manager = getattr(entry.runtime_data, "notification_manager", None)
+    if notification_manager is not None:
+        notification_manager.stop()
 
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 

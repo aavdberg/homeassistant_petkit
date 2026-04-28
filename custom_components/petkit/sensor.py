@@ -32,6 +32,7 @@ from pypetkitapi import (
 )
 
 from homeassistant.components.sensor import (
+    RestoreSensor,
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
@@ -51,7 +52,12 @@ from homeassistant.const import (
 
 from .const import BATTERY_LEVEL_MAP, DEVICE_STATUS_MAP, DOMAIN, LOGGER, NO_ERROR
 from .entity import PetKitDescSensorBase, PetkitEntity
-from .utils import get_raw_feed_plan, map_litter_event, map_work_state
+from .utils import (
+    get_raw_feed_plan_from_schedule,
+    get_raw_schedule,
+    map_litter_event,
+    map_work_state,
+)
 
 if TYPE_CHECKING:
     from homeassistant.core import HomeAssistant
@@ -334,7 +340,8 @@ SENSOR_MAPPING: dict[type[PetkitDevices], list[PetKitSensorDesc]] = {
             key="RAW distribution data",
             translation_key="raw_distribution_data",
             entity_category=EntityCategory.DIAGNOSTIC,
-            value=lambda device: get_raw_feed_plan(device.device_records),
+            value=lambda device: get_raw_feed_plan_from_schedule(device),
+            attributes=lambda device: get_raw_schedule(device),
             force_add=[D4H, D4SH],
         ),
     ],
@@ -721,7 +728,7 @@ SENSOR_MAPPING: dict[type[PetkitDevices], list[PetKitSensorDesc]] = {
             device_class=SensorDeviceClass.DURATION,
             state_class=SensorStateClass.MEASUREMENT,
             native_unit_of_measurement=UnitOfTime.SECONDS,
-            value=lambda pet: pet.last_duration_usage,
+            value=lambda pet: pet.last_duration_usage or None,
             restore_state=True,
         ),
         PetKitSensorDesc(
@@ -861,10 +868,11 @@ async def async_setup_entry(
     async_add_entities(entities + entities_bt)
 
 
-class PetkitSensor(PetkitEntity, SensorEntity):
+class PetkitSensor(PetkitEntity, RestoreSensor):
     """Petkit Smart Devices BinarySensor class."""
 
     entity_description: PetKitSensorDesc
+    _restored_native_value: Any = None
 
     def __init__(
         self,
@@ -878,12 +886,44 @@ class PetkitSensor(PetkitEntity, SensorEntity):
         self.entity_description = entity_description
         self.device = device
 
+    async def async_added_to_hass(self) -> None:
+        """Restore last known state on startup."""
+        await super().async_added_to_hass()
+
+        if (
+            self.entity_description.restore_state
+            and (last_sensor_data := await self.async_get_last_sensor_data())
+            is not None
+        ):
+            self._restored_native_value = last_sensor_data.native_value
+
     @property
     def native_value(self) -> Any:
         """Return the state of the sensor."""
         device_data = self.coordinator.data.get(self.device.id)
         if device_data:
-            return self.entity_description.value(device_data)
+            value = self.entity_description.value(device_data)
+            if self.entity_description.restore_state:
+                # Update the restored value when we have a meaningful reading,
+                # otherwise fall back to the last restored value if available.
+                if value is not None:
+                    self._restored_native_value = value
+                    return value
+                if self._restored_native_value is not None:
+                    return self._restored_native_value
+                return None
+            return value
+        if self.entity_description.restore_state:
+            return self._restored_native_value
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return extra state attributes."""
+        if self.entity_description.attributes:
+            device_data = self.coordinator.data.get(self.device.id)
+            if device_data:
+                return self.entity_description.attributes(device_data)
         return None
 
     @property

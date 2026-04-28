@@ -1,14 +1,17 @@
 <a href=""><img src="https://raw.githubusercontent.com/Jezza34000/homeassistant_petkit/refs/heads/main/images/banner.jpg"></a>
 
-[![GitHub Release][releases-shield]][releases] [![HACS Default](https://img.shields.io/badge/HACS-Default-blue.svg?style=for-the-badge&color=41BDF5)](https://hacs.xyz/docs/faq/custom_repositories)
+[![GitHub Release][releases-shield]][releases] [![HACS Default](https://img.shields.io/badge/HACS-Default-blue.svg?style=for-the-badge&color=41BDF5)](https://hacs.xyz/docs/faq/custom_repositories) ![GitHub Downloads](https://img.shields.io/github/downloads/Jezza34000/homeassistant_petkit/total?style=for-the-badge)
+
+## 🎯 A full-featured Petkit experience, natively in Home Assistant
 
 ## 🚀 Features
 
-- **Control** : Control your Petkit devices directly from Home Assistant.
-- **Monitor** : Monitor your devices status, monitor your pet's activity, feeding, drinking, and litter usage.
-- **Bluetooth relay** : Automatically check your fountain over bluetooth relay.
-- **Media** : Access media from your Petkit devices directly in the `Media` section.
-- **Live Stream:** Watch live video from devices with camera (⚠ Firefox does not support live stream)
+- 🎮 **Control** Send commands to your Petkit devices directly from Home Assistant (feeding schedules, settings, manual actions.)
+- 📊 **Monitor** Track your pet's activity in real time: (feeding history, water intake, litter box usage and device health.)
+- 📡 **Bluetooth Relay** Keep your fountain connected locally via Bluetooth relay
+- 🖼️ **Media** Browse and access photos & videos captured by your devices directly in the HA `Media` section.
+- 📹 **Live Stream** Watch live video from camera-equipped devices inside Home Assistant. (⚠ Firefox not supported.)
+- 🔔 **Notifications** Receive persistent notifications in Home Assistant just like in the official Petkit app (low food, filter alerts, and more.)
 
 ## 📘 Integration Wiki
 
@@ -36,6 +39,10 @@
 ### Leave a Github Star ⭐ it's free and helps others discover this integration.
 
 [![Sponsor Jezza34000][github-sponsor-shield]][github-sponsor] [![Static Badge][buymeacoffee-shield]][buymeacoffee]
+
+## 🏡 LocalKit
+
+Want to go fully local? Check out [LocalKit](https://localkit.io/) by @dwyschka for a cloud-free experience.
 
 ---
 

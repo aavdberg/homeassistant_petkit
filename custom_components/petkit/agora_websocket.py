@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from collections import defaultdict
 from collections.abc import Awaitable, Callable
 import contextlib
 from dataclasses import dataclass
@@ -63,12 +62,16 @@ class AgoraWebSocketHandler:
         prefer_instant_video: bool = False,
         subscribe_retry_delay: float = 0.0,
         subscribe_retry_attempts: int = 0,
+        declare_remote_video_ssrc: bool = False,
+        disable_audio_answer: bool = False,
+        on_connection_lost: Callable[[], None] | None = None,
     ) -> None:
         """Initialize runtime state."""
         self._websocket: ClientConnection | None = None
         self._connection_state = "DISCONNECTED"
         self._message_handlers: dict[str, Callable[[dict[str, Any]], Any]] = {}
         self._disconnect_task: asyncio.Task[None] | None = None
+        self._on_connection_lost = on_connection_lost
 
         self.candidates: list[RTCIceCandidateInit] = []
         self._online_users: set[int] = set()
@@ -81,11 +84,15 @@ class AgoraWebSocketHandler:
 
         self._joined = False
         self._answer_sdp: str | None = None
+        self._pending_answer_ortc: dict[str, Any] | None = None
+        self._pending_offer_info: OfferSdpInfo | None = None
         self._rtc_token: str | None = None
         self._rtc_token_provider = rtc_token_provider
         self._prefer_instant_video = prefer_instant_video
         self._subscribe_retry_delay = subscribe_retry_delay
         self._subscribe_retry_attempts = subscribe_retry_attempts
+        self._declare_remote_video_ssrc = declare_remote_video_ssrc
+        self._disable_audio_answer = disable_audio_answer
 
         self._setup_message_handlers()
 
@@ -240,6 +247,16 @@ class AgoraWebSocketHandler:
                             return answer
 
         except asyncio.TimeoutError:
+            if (
+                self._pending_answer_ortc is not None
+                and self._pending_offer_info is not None
+            ):
+                LOGGER.warning(
+                    "Timeout waiting for announced video stream; falling back to early SDP answer"
+                )
+                answer = self._finalize_pending_answer()
+                if answer:
+                    return answer
             LOGGER.error("Timeout waiting for join_v3 response")
         except WebSocketException as err:
             LOGGER.error("WebSocket error while waiting for join response: %s", err)
@@ -274,6 +291,7 @@ class AgoraWebSocketHandler:
             raise
         except WebSocketException as err:
             LOGGER.warning("Agora message loop closed: %s", err)
+            self._fire_connection_lost()
         finally:
             self._connection_state = "DISCONNECTED"
 
@@ -372,12 +390,17 @@ class AgoraWebSocketHandler:
             )
             seen.add(fingerprint_value.lower())
 
-        answer_sdp = self._generate_answer_sdp(ortc, offer_info)
-        if answer_sdp:
-            self._joined = True
-            self._answer_sdp = answer_sdp
-            return answer_sdp
-        return None
+        self._pending_answer_ortc = ortc
+        self._pending_offer_info = offer_info
+
+        if self._declare_remote_video_ssrc and not any(
+            isinstance(stream.get("ssrcId"), int)
+            for stream in self._video_streams.values()
+        ):
+            LOGGER.debug("Waiting for on_add_video_stream before finalizing SDP answer")
+            return None
+
+        return self._finalize_pending_answer()
 
     async def _handle_answer(self, response: dict[str, Any]) -> str | None:
         """Handle direct `answer` message containing SDP."""
@@ -396,6 +419,7 @@ class AgoraWebSocketHandler:
             response.get("error_str"),
         )
         self._disconnect_task = asyncio.create_task(self.disconnect())
+        self._fire_connection_lost()
 
     async def _handle_error(self, response: dict[str, Any]) -> None:
         """Handle generic Agora signaling errors."""
@@ -423,7 +447,7 @@ class AgoraWebSocketHandler:
         is_video = bool(message.get("video"))
 
         if not isinstance(uid, int) or not is_video:
-            return
+            return None
 
         LOGGER.debug(
             "Agora on_add_video_stream: uid=%s ssrc=%s rtx_ssrc=%s",
@@ -439,6 +463,30 @@ class AgoraWebSocketHandler:
 
         if isinstance(ssrc_id, int):
             await self._subscribe_video_stream(uid=uid, ssrc_id=ssrc_id)
+            if (
+                self._pending_answer_ortc is not None
+                and self._pending_offer_info is not None
+            ):
+                return self._finalize_pending_answer()
+
+        return None
+
+    def _finalize_pending_answer(self) -> str | None:
+        """Generate the deferred SDP answer once enough stream metadata exists."""
+        if self._pending_answer_ortc is None or self._pending_offer_info is None:
+            return self._answer_sdp
+
+        answer_sdp = self._generate_answer_sdp(
+            self._pending_answer_ortc,
+            self._pending_offer_info,
+        )
+        if answer_sdp:
+            self._joined = True
+            self._answer_sdp = answer_sdp
+            self._pending_answer_ortc = None
+            self._pending_offer_info = None
+            return answer_sdp
+        return None
 
     async def _send_set_client_role(
         self, role: str = "audience", level: int = 1
@@ -769,6 +817,272 @@ class AgoraWebSocketHandler:
             LOGGER.error("Failed to parse offer SDP: %s", err)
             return None
 
+    @staticmethod
+    def _select_rtp_capabilities(ortc: dict[str, Any]) -> dict[str, Any]:
+        """Return the preferred RTP capability block from Agora ORTC data."""
+        rtp_capabilities = ortc.get("rtpCapabilities", {})
+        return (
+            rtp_capabilities.get("sendrecv")
+            or rtp_capabilities.get("recv")
+            or rtp_capabilities.get("send")
+            or rtp_capabilities
+        )
+
+    @staticmethod
+    def _extract_fingerprint(dtls_parameters: dict[str, Any]) -> str:
+        """Return the DTLS fingerprint advertised by Agora."""
+        fingerprints = dtls_parameters.get("fingerprints", []) or []
+        if not fingerprints:
+            return ""
+
+        primary = fingerprints[0]
+        algorithm = primary.get("hashFunction") or primary.get("algorithm") or "sha-256"
+        fingerprint_value = primary.get("fingerprint", "")
+        return f"{algorithm} {fingerprint_value}" if fingerprint_value else ""
+
+    @staticmethod
+    def _build_candidate_lines(candidates: list[dict[str, Any]]) -> list[str]:
+        """Translate Agora ICE candidates into SDP lines."""
+        candidate_lines: list[str] = []
+        for index, candidate in enumerate(candidates):
+            foundation = candidate.get("foundation", f"candidate{index}")
+            protocol = candidate.get("protocol", "udp")
+            priority = candidate.get("priority", 2103266323)
+            ip = candidate.get("ip", "")
+            port = candidate.get("port", 0)
+            candidate_type = candidate.get("type", "host")
+
+            line = (
+                "a=candidate:"
+                f"{foundation} 1 {protocol} {priority} {ip} {port} typ {candidate_type}"
+            )
+            if candidate.get("generation") is not None:
+                line += f" generation {candidate.get('generation')}"
+            candidate_lines.append(line)
+        return candidate_lines
+
+    @staticmethod
+    def _answer_direction(offer_direction: str) -> str:
+        """Map the offered direction into the matching answer direction."""
+        if offer_direction == "sendonly":
+            return "recvonly"
+        if offer_direction == "recvonly":
+            return "sendonly"
+        if offer_direction == "sendrecv":
+            return "sendrecv"
+        return "inactive"
+
+    def _primary_video_stream(self) -> dict[str, Any] | None:
+        """Return the first announced video stream that exposes an SSRC."""
+        if not self._declare_remote_video_ssrc:
+            return None
+
+        for stream in self._video_streams.values():
+            if isinstance(stream.get("ssrcId"), int):
+                return stream
+        return None
+
+    @staticmethod
+    def _bundle_mids(offer_info: OfferSdpInfo) -> str:
+        """Return the BUNDLE mids declared by the offer."""
+        bundle_group = (
+            offer_info.parsed_sdp.get("groups", [{}])[0]
+            if offer_info.parsed_sdp.get("groups")
+            else {}
+        )
+        return bundle_group.get("mids", "0 1")
+
+    @staticmethod
+    def _build_session_sdp_lines(
+        bundle_mids: str,
+        *,
+        extmap_allow_mixed: bool,
+    ) -> list[str]:
+        """Build the session-level SDP prefix for the answer."""
+        sdp_lines = [
+            "v=0",
+            "o=- 0 0 IN IP4 127.0.0.1",
+            "s=AgoraGateway",
+            "t=0 0",
+            f"a=group:BUNDLE {bundle_mids}",
+            "a=ice-lite",
+        ]
+        if extmap_allow_mixed:
+            sdp_lines.append("a=extmap-allow-mixed")
+        sdp_lines.append("a=msid-semantic: WMS")
+        return sdp_lines
+
+    @staticmethod
+    def _payload_types_for_media(
+        codecs: list[dict[str, Any]],
+        media: dict[str, Any],
+    ) -> list[str]:
+        """Return negotiated payload types for one media section."""
+        payload_types = [str(codec.get("payloadType")) for codec in codecs]
+        if payload_types:
+            return payload_types
+        return str(media.get("payloads", "")).split()
+
+    @staticmethod
+    def _build_transport_lines(
+        media_type: str,
+        payloads: str,
+        *,
+        ice_ufrag: str,
+        ice_pwd: str,
+        fingerprint: str,
+        mid: str,
+    ) -> list[str]:
+        """Build the transport lines for one media section."""
+        return [
+            f"m={media_type} 9 UDP/TLS/RTP/SAVPF {payloads}",
+            "c=IN IP4 127.0.0.1",
+            "a=rtcp:9 IN IP4 0.0.0.0",
+            f"a=ice-ufrag:{ice_ufrag}",
+            f"a=ice-pwd:{ice_pwd}",
+            "a=ice-options:trickle",
+            f"a=fingerprint:{fingerprint}",
+            "a=setup:active",
+            f"a=mid:{mid}",
+        ]
+
+    @staticmethod
+    def _build_extension_lines(
+        offer_extensions: list[dict[str, Any]],
+        answer_extensions: list[dict[str, Any]],
+    ) -> list[str]:
+        """Build negotiated extmap lines for one media section."""
+        offer_ext_map = {
+            extension.get("extensionName"): extension.get("entry")
+            for extension in offer_extensions
+        }
+        return [
+            f"a=extmap:{offer_ext_map[extension_name]} {extension_name}"
+            for extension in answer_extensions
+            if (extension_name := extension.get("extensionName")) in offer_ext_map
+        ]
+
+    @staticmethod
+    def _build_codec_lines(codecs: list[dict[str, Any]]) -> list[str]:
+        """Build codec-specific SDP lines for one media section."""
+        codec_lines: list[str] = []
+        for codec in codecs:
+            payload_type = codec.get("payloadType")
+            rtp_map = codec.get("rtpMap", {})
+            codec_name = rtp_map.get("encodingName", "")
+            clock_rate = rtp_map.get("clockRate", 90000)
+            encoding_parameters = rtp_map.get("encodingParameters")
+
+            if encoding_parameters:
+                codec_lines.append(
+                    "a=rtpmap:"
+                    f"{payload_type} {codec_name}/{clock_rate}/{encoding_parameters}"
+                )
+            else:
+                codec_lines.append(f"a=rtpmap:{payload_type} {codec_name}/{clock_rate}")
+
+            for feedback in codec.get("rtcpFeedbacks", []):
+                feedback_type = feedback.get("type")
+                feedback_parameter = feedback.get("parameter")
+                if feedback_parameter:
+                    codec_lines.append(
+                        "a=rtcp-fb:"
+                        f"{payload_type} {feedback_type} {feedback_parameter}"
+                    )
+                else:
+                    codec_lines.append(f"a=rtcp-fb:{payload_type} {feedback_type}")
+
+            fmtp = codec.get("fmtp", {})
+            parameters = fmtp.get("parameters", {}) if fmtp else {}
+            if parameters:
+                parameter_string = ";".join(
+                    f"{key}={value}" for key, value in parameters.items()
+                )
+                codec_lines.append(f"a=fmtp:{payload_type} {parameter_string}")
+
+        return codec_lines
+
+    @staticmethod
+    def _build_video_ssrc_lines(
+        primary_video_stream: dict[str, Any] | None,
+    ) -> list[str]:
+        """Build SSRC lines for the announced remote video stream."""
+        if primary_video_stream is None:
+            return []
+
+        video_ssrc = primary_video_stream.get("ssrcId")
+        if not isinstance(video_ssrc, int):
+            return []
+
+        rtx_ssrc = primary_video_stream.get("rtxSsrcId")
+        cname = primary_video_stream.get("cname") or "agora"
+        ssrc_lines = [
+            "a=msid:agora agora-video",
+            f"a=ssrc:{video_ssrc} cname:{cname}",
+            f"a=ssrc:{video_ssrc} msid:agora agora-video",
+            f"a=ssrc:{video_ssrc} mslabel:agora",
+            f"a=ssrc:{video_ssrc} label:agora-video",
+        ]
+        if isinstance(rtx_ssrc, int):
+            ssrc_lines.append(f"a=ssrc-group:FID {video_ssrc} {rtx_ssrc}")
+            ssrc_lines.append(f"a=ssrc:{rtx_ssrc} cname:{cname}")
+        return ssrc_lines
+
+    def _build_media_section_lines(
+        self,
+        media: dict[str, Any],
+        *,
+        index: int,
+        caps: dict[str, Any],
+        offer_info: OfferSdpInfo,
+        ice_ufrag: str,
+        ice_pwd: str,
+        fingerprint: str,
+        candidate_lines: list[str],
+        primary_video_stream: dict[str, Any] | None,
+    ) -> list[str]:
+        """Build the SDP lines for one audio or video media section."""
+        media_type = media.get("type", "audio")
+        answer_direction = self._answer_direction(media.get("direction", "sendonly"))
+        if media_type == "audio" and self._disable_audio_answer:
+            answer_direction = "inactive"
+
+        codecs = (
+            caps.get("audioCodecs", []) or []
+            if media_type == "audio"
+            else caps.get("videoCodecs", []) or []
+        )
+        answer_extensions = (
+            caps.get("audioExtensions", []) or []
+            if media_type == "audio"
+            else caps.get("videoExtensions", []) or []
+        )
+        offer_extensions = (
+            offer_info.audio_extensions
+            if media_type == "audio"
+            else offer_info.video_extensions
+        )
+        payloads = " ".join(self._payload_types_for_media(codecs, media))
+        mid = str(media.get("mid", str(index)))
+
+        sdp_lines = self._build_transport_lines(
+            media_type,
+            payloads,
+            ice_ufrag=ice_ufrag,
+            ice_pwd=ice_pwd,
+            fingerprint=fingerprint,
+            mid=mid,
+        )
+        sdp_lines.extend(candidate_lines)
+        sdp_lines.extend(
+            self._build_extension_lines(offer_extensions, answer_extensions)
+        )
+        sdp_lines.extend([f"a={answer_direction}", "a=rtcp-mux", "a=rtcp-rsize"])
+        sdp_lines.extend(self._build_codec_lines(codecs))
+        if media_type == "video":
+            sdp_lines.extend(self._build_video_ssrc_lines(primary_video_stream))
+        return sdp_lines
+
     def _generate_answer_sdp(
         self,
         ortc: dict[str, Any],
@@ -777,180 +1091,41 @@ class AgoraWebSocketHandler:
         """Generate answer SDP from Agora ORTC response."""
         try:
             ice_parameters = ortc.get("iceParameters", {})
-            dtls_parameters = ortc.get("dtlsParameters", {})
-
-            rtp_capabilities = ortc.get("rtpCapabilities", {})
-            caps = (
-                rtp_capabilities.get("sendrecv")
-                or rtp_capabilities.get("recv")
-                or rtp_capabilities.get("send")
-                or rtp_capabilities
-            )
-
-            candidates = ice_parameters.get("candidates", []) or []
+            caps = self._select_rtp_capabilities(ortc)
             ice_ufrag = ice_parameters.get("iceUfrag") or secrets.token_hex(4)
             ice_pwd = ice_parameters.get("icePwd") or secrets.token_hex(16)
-
-            fingerprints = dtls_parameters.get("fingerprints", []) or []
-            fingerprint = ""
-            if fingerprints:
-                primary = fingerprints[0]
-                algorithm = (
-                    primary.get("hashFunction") or primary.get("algorithm") or "sha-256"
-                )
-                fingerprint_value = primary.get("fingerprint", "")
-                if fingerprint_value:
-                    fingerprint = f"{algorithm} {fingerprint_value}"
+            fingerprint = self._extract_fingerprint(ortc.get("dtlsParameters", {}))
             if not fingerprint:
                 LOGGER.error("Missing DTLS fingerprint in Agora ORTC response")
                 return None
-
-            candidates_by_mid: dict[str, list[str]] = defaultdict(list)
-            for index, candidate in enumerate(candidates):
-                foundation = candidate.get("foundation", f"candidate{index}")
-                protocol = candidate.get("protocol", "udp")
-                priority = candidate.get("priority", 2103266323)
-                ip = candidate.get("ip", "")
-                port = candidate.get("port", 0)
-                candidate_type = candidate.get("type", "host")
-
-                line = (
-                    "a=candidate:"
-                    f"{foundation} 1 {protocol} {priority} {ip} {port} typ {candidate_type}"
-                )
-                if candidate.get("generation") is not None:
-                    line += f" generation {candidate.get('generation')}"
-                candidates_by_mid["*"].append(line)
-
-            audio_codecs = caps.get("audioCodecs", []) or []
-            video_codecs = caps.get("videoCodecs", []) or []
-            audio_extensions = caps.get("audioExtensions", []) or []
-            video_extensions = caps.get("videoExtensions", []) or []
-
-            def _answer_direction(offer_direction: str) -> str:
-                if offer_direction == "sendonly":
-                    return "recvonly"
-                if offer_direction == "recvonly":
-                    return "sendonly"
-                if offer_direction == "sendrecv":
-                    return "sendrecv"
-                return "inactive"
 
             media_sections = offer_info.parsed_sdp.get("media", []) or []
             if not media_sections:
                 return None
 
-            bundle_group = (
-                offer_info.parsed_sdp.get("groups", [{}])[0]
-                if offer_info.parsed_sdp.get("groups")
-                else {}
+            sdp_lines = self._build_session_sdp_lines(
+                self._bundle_mids(offer_info),
+                extmap_allow_mixed=offer_info.extmap_allow_mixed,
             )
-            bundle_mids = bundle_group.get("mids", "0 1")
-
-            sdp_lines = [
-                "v=0",
-                "o=- 0 0 IN IP4 127.0.0.1",
-                "s=AgoraGateway",
-                "t=0 0",
-                f"a=group:BUNDLE {bundle_mids}",
-                "a=ice-lite",
-            ]
-
-            if offer_info.extmap_allow_mixed:
-                sdp_lines.append("a=extmap-allow-mixed")
-            sdp_lines.append("a=msid-semantic: WMS")
+            candidate_lines = self._build_candidate_lines(
+                ice_parameters.get("candidates", []) or []
+            )
+            primary_video_stream = self._primary_video_stream()
 
             for index, media in enumerate(media_sections):
-                media_type = media.get("type", "audio")
-                offer_direction = media.get("direction", "sendonly")
-                answer_direction = _answer_direction(offer_direction)
-                mid = str(media.get("mid", str(index)))
-
-                codecs = audio_codecs if media_type == "audio" else video_codecs
-                extensions = (
-                    audio_extensions if media_type == "audio" else video_extensions
-                )
-
-                payload_types = [str(codec.get("payloadType")) for codec in codecs]
-                if not payload_types:
-                    payload_types = str(media.get("payloads", "")).split()
-
-                payloads = " ".join(payload_types)
-
                 sdp_lines.extend(
-                    [
-                        f"m={media_type} 9 UDP/TLS/RTP/SAVPF {payloads}",
-                        "c=IN IP4 127.0.0.1",
-                        "a=rtcp:9 IN IP4 0.0.0.0",
-                        f"a=ice-ufrag:{ice_ufrag}",
-                        f"a=ice-pwd:{ice_pwd}",
-                        "a=ice-options:trickle",
-                        f"a=fingerprint:{fingerprint}",
-                        "a=setup:active",
-                        f"a=mid:{mid}",
-                    ]
+                    self._build_media_section_lines(
+                        media,
+                        index=index,
+                        caps=caps,
+                        offer_info=offer_info,
+                        ice_ufrag=ice_ufrag,
+                        ice_pwd=ice_pwd,
+                        fingerprint=fingerprint,
+                        candidate_lines=candidate_lines,
+                        primary_video_stream=primary_video_stream,
+                    )
                 )
-
-                sdp_lines.extend(candidates_by_mid.get("*", []))
-
-                offer_extensions = (
-                    offer_info.audio_extensions
-                    if media_type == "audio"
-                    else offer_info.video_extensions
-                )
-                offer_ext_map = {
-                    extension.get("extensionName"): extension.get("entry")
-                    for extension in offer_extensions
-                }
-
-                for extension in extensions:
-                    extension_name = extension.get("extensionName")
-                    if extension_name in offer_ext_map:
-                        sdp_lines.append(
-                            f"a=extmap:{offer_ext_map[extension_name]} {extension_name}"
-                        )
-
-                sdp_lines.extend(
-                    [f"a={answer_direction}", "a=rtcp-mux", "a=rtcp-rsize"]
-                )
-
-                for codec in codecs:
-                    payload_type = codec.get("payloadType")
-                    rtp_map = codec.get("rtpMap", {})
-                    codec_name = rtp_map.get("encodingName", "")
-                    clock_rate = rtp_map.get("clockRate", 90000)
-                    encoding_parameters = rtp_map.get("encodingParameters")
-
-                    if encoding_parameters:
-                        sdp_lines.append(
-                            "a=rtpmap:"
-                            f"{payload_type} {codec_name}/{clock_rate}/{encoding_parameters}"
-                        )
-                    else:
-                        sdp_lines.append(
-                            f"a=rtpmap:{payload_type} {codec_name}/{clock_rate}"
-                        )
-
-                    for feedback in codec.get("rtcpFeedbacks", []):
-                        feedback_type = feedback.get("type")
-                        feedback_parameter = feedback.get("parameter")
-                        if feedback_parameter:
-                            sdp_lines.append(
-                                "a=rtcp-fb:"
-                                f"{payload_type} {feedback_type} {feedback_parameter}"
-                            )
-                        else:
-                            sdp_lines.append(
-                                f"a=rtcp-fb:{payload_type} {feedback_type}"
-                            )
-
-                    fmtp = codec.get("fmtp", {})
-                    parameters = fmtp.get("parameters", {}) if fmtp else {}
-                    if parameters:
-                        parameter_string = ";".join(
-                            f"{key}={value}" for key, value in parameters.items()
-                        )
-                        sdp_lines.append(f"a=fmtp:{payload_type} {parameter_string}")
 
             answer_sdp = "\r\n".join(sdp_lines) + "\r\n"
             return answer_sdp if self._validate_sdp(answer_sdp) else None
@@ -995,6 +1170,12 @@ class AgoraWebSocketHandler:
         """Return websocket connectivity state."""
         return self._connection_state == "CONNECTED"
 
+    def _fire_connection_lost(self) -> None:
+        """Notify the owner that the Agora connection dropped unexpectedly."""
+        if self._on_connection_lost is not None:
+            self._on_connection_lost()
+            self._on_connection_lost = None
+
     async def disconnect(self) -> None:
         """Close websocket and cancel background tasks."""
         tasks_to_wait: list[asyncio.Task[None]] = []
@@ -1027,6 +1208,9 @@ class AgoraWebSocketHandler:
             self._websocket = None
 
         self._joined = False
+        self._answer_sdp = None
+        self._pending_answer_ortc = None
+        self._pending_offer_info = None
         self._connection_state = "DISCONNECTED"
         self._video_streams.clear()
         self._subscribed_video_streams.clear()
