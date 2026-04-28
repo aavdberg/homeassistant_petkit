@@ -798,12 +798,12 @@
           "local_ble_options": {
             "data": {
               "local_ble_enabled": "Lokaal Bluetooth inschakelen",
-              "local_ble_fountains": "Fonteinen (lijst van {{\"mac\": \"XX:XX:XX:XX:XX:XX\", \"name\": \"Mijn Fontein\"}})",
+              "local_ble_fountains": "Fonteinen",
               "local_ble_debug_log": "Debug log inschakelen (petkit.log)"
             },
             "data_description": {
               "local_ble_enabled": "Verbindt rechtstreeks met uw fontein via Bluetooth (lokale adapter of ESPHome Bluetooth Proxy). Vereist geen relay-apparaat van een Petkit-account.",
-              "local_ble_fountains": "Lijst met fonteinen die via lokaal BLE worden gepolld. Elk item moet een 'mac'-sleutel bevatten en optioneel een 'name'-sleutel.",
+              "local_ble_fountains": "Lijst met fonteinen die via lokaal BLE worden gepolld. Geef een YAML-lijst op waarbij elk item een `mac` (verplicht, het Bluetooth-adres van de fontein zoals getoond in de Petkit-app of uw BLE-scanner) en optioneel een `name` bevat. Voorbeeld:\n```yaml\n- mac: AA:BB:CC:DD:EE:FF\n  name: Fontein woonkamer\n- mac: 11:22:33:44:55:66\n  name: Fontein keuken\n```",
               "local_ble_debug_log": "Schrijf gedetailleerde BLE-debug-informatie naar /config/petkit.log. Schakel uit als het niet nodig is om schrijfbewerkingen te verminderen."
             },
             "description": "Directe Bluetooth-verbinding met uw fontein. Werkt met lokale Bluetooth-adapters en ESPHome Bluetooth-proxy's.",
