@@ -23,6 +23,7 @@ from homeassistant.loader import async_get_loaded_integration
 
 from .const import (
     BT_SECTION,
+    CONF_ENABLED_NOTIFICATIONS,
     CONF_LOCAL_BLE_ENABLED,
     CONF_SCAN_INTERVAL_BLUETOOTH,
     CONF_SCAN_INTERVAL_MEDIA,
@@ -30,6 +31,7 @@ from .const import (
     COORDINATOR_BLUETOOTH,
     COORDINATOR_LOCAL_BLE,
     COORDINATOR_MEDIA,
+    DEFAULT_ENABLED_NOTIFICATIONS,
     DEFAULT_LOCAL_BLE_ENABLED,
     DEFAULT_LOCAL_BLE_POLL_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
@@ -37,6 +39,7 @@ from .const import (
     LOCAL_BLE_SECTION,
     LOGGER,
     MEDIA_SECTION,
+    NOTIFICATION_SECTION,
 )
 from .coordinator import (
     PetkitBluetoothUpdateCoordinator,
@@ -272,9 +275,13 @@ async def async_setup_entry(
     await mqtt_listener.async_start()
 
     # Notifications
+    enabled_notifications = entry.options.get(NOTIFICATION_SECTION, {}).get(
+        CONF_ENABLED_NOTIFICATIONS, DEFAULT_ENABLED_NOTIFICATIONS
+    )
     notification_manager = PetkitNotificationManager(
         hass=hass,
         coordinator=coordinator,
+        enabled_categories=enabled_notifications,
     )
     await notification_manager.async_start()
     entry.runtime_data.notification_manager = notification_manager
@@ -331,6 +338,27 @@ async def async_reload_entry(
 ) -> None:
     """Reload config entry."""
     await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_migrate_entry(hass: HomeAssistant, entry: PetkitConfigEntry) -> bool:
+    """Migrate config entry between schema versions."""
+    LOGGER.debug(
+        "Migrating Petkit entry %s from version %s.%s",
+        entry.entry_id,
+        entry.version,
+        getattr(entry, "minor_version", 1),
+    )
+
+    if entry.version < 8:
+        new_options = dict(entry.options)
+        section = dict(new_options.get(NOTIFICATION_SECTION, {}))
+        section.setdefault(
+            CONF_ENABLED_NOTIFICATIONS, list(DEFAULT_ENABLED_NOTIFICATIONS)
+        )
+        new_options[NOTIFICATION_SECTION] = section
+        hass.config_entries.async_update_entry(entry, options=new_options, version=8)
+
+    return True
 
 
 async def async_update_options(hass: HomeAssistant, entry: PetkitConfigEntry) -> None:

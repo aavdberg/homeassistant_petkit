@@ -827,9 +827,33 @@
             },
             "description": "These options are only effective if you have at least one device (e.g., feeder, litter box) capable of capturing images & videos",
             "name": "Media options"
+          },
+          "notifications_options": {
+            "data": {
+              "enabled_notifications": "Enabled notifications"
+            },
+            "data_description": {
+              "enabled_notifications": "Select which PetKit events should raise a Home Assistant persistent notification. Uncheck a category to silence it in Home Assistant. These categories are independent from the device-side notification switches in the Petkit app."
+            },
+            "description": "Control which PetKit device events raise a Home Assistant persistent notification independently from the Petkit app settings.",
+            "name": "Notifications"
           }
         },
         "title": "Petkit integration configuration"
+      }
+    }
+  },
+  "selector": {
+    "petkit_notification_category": {
+      "options": {
+        "feeder_error": "Feeder — device error",
+        "feeder_food_low": "Feeder — food level low",
+        "fountain_filter": "Water fountain — filter needs replacement",
+        "fountain_water_low": "Water fountain — water level low",
+        "litter_box_full": "Litter box — waste bin full",
+        "litter_error": "Litter box — device error",
+        "litter_event": "Litter box — cleaning / pet visit events",
+        "litter_sand_low": "Litter box — litter level low"
       }
     }
   }

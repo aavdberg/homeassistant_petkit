@@ -827,9 +827,33 @@
             },
             "description": "Deze opties zijn alleen effectief als u ten minste één apparaat heeft (bijv. voederautomaat, kattenbak) dat afbeeldingen en video's kan opnemen",
             "name": "Media-opties"
+          },
+          "notifications_options": {
+            "data": {
+              "enabled_notifications": "Ingeschakelde meldingen"
+            },
+            "data_description": {
+              "enabled_notifications": "Selecteer welke PetKit-gebeurtenissen een persistente Home Assistant-melding moeten tonen. Vink een categorie uit om deze alleen in Home Assistant te onderdrukken. Deze categorieen staan los van de meldingsschakelaars in de Petkit-app."
+            },
+            "description": "Bepaal welke PetKit-apparaatgebeurtenissen onafhankelijk van de Petkit-app een persistente melding in Home Assistant tonen.",
+            "name": "Meldingen"
           }
         },
         "title": "Petkit integratie configuratie"
+      }
+    }
+  },
+  "selector": {
+    "petkit_notification_category": {
+      "options": {
+        "feeder_error": "Voederautomaat — apparaatfout",
+        "feeder_food_low": "Voederautomaat — voedselniveau laag",
+        "fountain_filter": "Waterfontein — filter moet worden vervangen",
+        "fountain_water_low": "Waterfontein — waterniveau laag",
+        "litter_box_full": "Kattenbak — afvalbak vol",
+        "litter_error": "Kattenbak — apparaatfout",
+        "litter_event": "Kattenbak — schoonmaak / dierbezoek",
+        "litter_sand_low": "Kattenbak — kattenbakvulling laag"
       }
     }
   }

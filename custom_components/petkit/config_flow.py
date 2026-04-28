@@ -40,6 +40,7 @@ from .const import (
     CODE_TO_COUNTRY_DICT,
     CONF_BLE_RELAY_ENABLED,
     CONF_DELETE_AFTER,
+    CONF_ENABLED_NOTIFICATIONS,
     CONF_LOCAL_BLE_DEBUG,
     CONF_LOCAL_BLE_ENABLED,
     CONF_LOCAL_BLE_FOUNTAINS,
@@ -54,6 +55,7 @@ from .const import (
     DEFAULT_DELETE_AFTER,
     DEFAULT_DL_IMAGE,
     DEFAULT_DL_VIDEO,
+    DEFAULT_ENABLED_NOTIFICATIONS,
     DEFAULT_EVENTS,
     DEFAULT_LOCAL_BLE_DEBUG,
     DEFAULT_LOCAL_BLE_ENABLED,
@@ -64,6 +66,8 @@ from .const import (
     LOCAL_BLE_SECTION,
     LOGGER,
     MEDIA_SECTION,
+    NOTIFICATION_CATEGORIES,
+    NOTIFICATION_SECTION,
 )
 
 
@@ -197,6 +201,29 @@ class PetkitOptionsFlowHandler(OptionsFlow):
                         ),
                         {"collapsed": True},
                     ),
+                    vol.Required(NOTIFICATION_SECTION): section(
+                        vol.Schema(
+                            {
+                                vol.Optional(
+                                    CONF_ENABLED_NOTIFICATIONS,
+                                    default=self.config_entry.options.get(
+                                        NOTIFICATION_SECTION, {}
+                                    ).get(
+                                        CONF_ENABLED_NOTIFICATIONS,
+                                        DEFAULT_ENABLED_NOTIFICATIONS,
+                                    ),
+                                ): selector.SelectSelector(
+                                    selector.SelectSelectorConfig(
+                                        multiple=True,
+                                        sort=False,
+                                        translation_key="petkit_notification_category",
+                                        options=list(NOTIFICATION_CATEGORIES),
+                                    )
+                                ),
+                            }
+                        ),
+                        {"collapsed": False},
+                    ),
                 }
             ),
         )
@@ -205,7 +232,7 @@ class PetkitOptionsFlowHandler(OptionsFlow):
 class PetkitFlowHandler(ConfigFlow, domain=DOMAIN):
     """Config flow for Petkit Smart Devices."""
 
-    VERSION = 7
+    VERSION = 8
 
     @staticmethod
     @callback
@@ -281,6 +308,11 @@ class PetkitFlowHandler(ConfigFlow, domain=DOMAIN):
                                 CONF_LOCAL_BLE_ENABLED: DEFAULT_LOCAL_BLE_ENABLED,
                                 CONF_LOCAL_BLE_FOUNTAINS: [],
                                 CONF_LOCAL_BLE_DEBUG: DEFAULT_LOCAL_BLE_DEBUG,
+                            },
+                            NOTIFICATION_SECTION: {
+                                CONF_ENABLED_NOTIFICATIONS: list(
+                                    DEFAULT_ENABLED_NOTIFICATIONS
+                                ),
                             },
                         },
                     )
