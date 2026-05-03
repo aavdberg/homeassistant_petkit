@@ -486,7 +486,7 @@ class LocalFountainBleProtocol:
         result: dict[str, Any] = {
             "power_status": payload[0],
             "suspend_status": payload[1],
-            "mode": payload[2],
+            "mode_raw": payload[2],
             "electric_status": payload[3],
             "dnd_state": payload[4],
             "warning_breakdown": payload[5],
@@ -497,11 +497,25 @@ class LocalFountainBleProtocol:
             "filter_percentage": payload[13],
             "running_status": payload[14],
         }
+        # CTW3 firmware transiently reports mode=0 during the smart-mode sleep
+        # phase (issue #57 in aavdberg/ha-petkit). Treating that as ground
+        # truth would make the mode select show "Unknown" and any subsequent
+        # power-switch toggle would send the wrong CMD 220 payload, kicking
+        # the device out of smart mode. Only propagate ``mode`` when the
+        # device reports a known value (1=normal, 2=smart); otherwise let the
+        # consumer keep its previously latched mode.
+        if payload[2] in (1, 2):
+            result["mode"] = payload[2]
 
         if len(payload) >= 19:
             result["pump_runtime_today"] = int.from_bytes(payload[15:19], "big")
         if len(payload) >= 20:
-            result["detect_status"] = payload[19]
+            # Normalize to 0/1: CTW3 firmware 111 has been observed to use
+            # value 2 (not 1) when the proximity sensor sees a pet. Treating
+            # any non-zero value as "detected" makes the field future-proof
+            # (issue #65 in aavdberg/ha-petkit) and keeps the drink-counter
+            # increment logic working.
+            result["detect_status"] = 1 if payload[19] else 0
         if len(payload) >= 22:
             result["supply_voltage"] = int.from_bytes(
                 payload[20:22], "big", signed=True
@@ -520,27 +534,33 @@ class LocalFountainBleProtocol:
     def _parse_config_ctw3(self, payload: bytes) -> dict[str, Any] | None:
         """Parse CMD 211 (device configuration) for CTW3.
 
-        Byte layout (confirmed from petkit_ble_mqtt parsers.py):
+        Byte layout (matches build_settings_payload_ctw3 in aavdberg/ha-petkit
+        v1.2.0 protocol.py — fixes off-by-one against earlier petkit_ble_mqtt
+        documentation):
           [0]    smart_time_on        minutes (1-60)
           [1]    smart_time_off       minutes (1-60)
           [2:4]  battery_working_time big-endian uint16
           [4:6]  battery_sleep_time   big-endian uint16
-          [6]    led_switch           0=off, 1=on
-          [7]    led_brightness       1=low, 2=medium, 3=high
-          [8]    do_not_disturb_switch 0=off, 1=on
+          [6]    do_not_disturb_switch 0=off, 1=on
+          [7]    led_switch           0=off, 1=on
+          [8]    led_brightness       1=low, 2=medium, 3=high
           [9]    is_locked            (optional)
+
+        Note: CTW3 firmware 111 has not been observed to reply to CMD 211 in
+        practice, so this parser is currently unreached on real hardware but
+        is kept symmetric with the CMD 221 builder layout.
         """
         _LOGGER.debug("CTW3 config payload (%d bytes): %s", len(payload), payload.hex())
-        if len(payload) < 8:
+        if len(payload) < 9:
             return None
         result: dict[str, Any] = {
             "smart_time_on": payload[0],
             "smart_time_off": payload[1],
-            "led_switch": payload[6],
-            "led_brightness": payload[7],
-            "do_not_disturb_switch": payload[8] if len(payload) > 8 else 0,
+            "do_not_disturb_switch": payload[6],
+            "led_switch": payload[7],
+            "led_brightness": payload[8],
         }
-        if len(payload) > 9:
+        if len(payload) >= 10:
             result["is_locked"] = payload[9]
         return result
 
