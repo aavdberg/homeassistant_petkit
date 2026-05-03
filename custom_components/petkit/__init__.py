@@ -42,8 +42,6 @@ from .const import (
     LOGGER,
     MEDIA_SECTION,
     MODE_AUTO,
-    MODE_BLE_ONLY,
-    MODE_CLOUD_ONLY,
     NOTIFICATION_SECTION,
 )
 from .coordinator import (
