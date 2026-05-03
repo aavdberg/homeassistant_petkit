@@ -272,9 +272,7 @@ async def async_setup_entry(
         # HA only schedules subsequent refreshes while the listener list is
         # non-empty, so we attach a no-op listener to keep polling alive.
         # (fredrik-lindseth, PR #203 follow-up #1.)
-        entry.async_on_unload(
-            coordinator_local_ble.async_add_listener(lambda: None)
-        )
+        entry.async_on_unload(coordinator_local_ble.async_add_listener(lambda: None))
 
     # MQTT
 

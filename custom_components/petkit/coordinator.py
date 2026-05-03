@@ -433,9 +433,7 @@ class PetkitLocalBleCoordinator(DataUpdateCoordinator):
                 if dev_mac and dev_mac == target:
                     protocol_cls.update_water_fountain(device, status)
                     results[mac] = status
-                    LOGGER.debug(
-                        "Local BLE update applied for %s (%s)", name, mac
-                    )
+                    LOGGER.debug("Local BLE update applied for %s (%s)", name, mac)
                     self._bump_last_ble_connection(device)
                     return
 
