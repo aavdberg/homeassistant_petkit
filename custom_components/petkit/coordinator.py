@@ -360,13 +360,15 @@ class PetkitLocalBleCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict[str, Any]:
         """Poll all configured local BLE fountains and update entity data."""
         from .const import (
+            BLE_CONNECT_GRACE_SECONDS,
+            CONF_BLE_SECRETS,
             CONF_LOCAL_BLE_DEBUG,
             CONF_LOCAL_BLE_FOUNTAINS,
             DEFAULT_LOCAL_BLE_DEBUG,
             LOCAL_BLE_SECTION,
         )
         from .fountain_ble import FountainBleClient, LocalFountainBleProtocol
-        from .utils import is_local_ble_active
+        from .utils import is_local_ble_active, normalize_mac
 
         if not is_local_ble_active(self.config.options):
             LOGGER.debug("Local BLE is disabled by configuration (cloud_only mode)")
@@ -375,15 +377,52 @@ class PetkitLocalBleCoordinator(DataUpdateCoordinator):
         ble_section = self.config.options.get(LOCAL_BLE_SECTION, {})
         debug_log: bool = ble_section.get(CONF_LOCAL_BLE_DEBUG, DEFAULT_LOCAL_BLE_DEBUG)
         fountains: list[dict] = ble_section.get(CONF_LOCAL_BLE_FOUNTAINS, [])
+        # Per-device BLE secret cache (Jezza34000 PR #203 design 2026-05-02).
+        secrets_cache: dict[str, str] = dict(self.config.data.get(CONF_BLE_SECRETS, {}))
         results: dict[str, Any] = {}
+
+        def _make_persist_cb(self_ref: PetkitLocalBleCoordinator) -> Any:
+            async def _persist(mac: str, secret_hex: str) -> None:
+                key = normalize_mac(mac) or mac
+                if secrets_cache.get(key) == secret_hex:
+                    return
+                secrets_cache[key] = secret_hex
+                new_data = {
+                    **self_ref.config.data,
+                    CONF_BLE_SECRETS: dict(secrets_cache),
+                }
+                self_ref.hass.config_entries.async_update_entry(
+                    self_ref.config, data=new_data
+                )
+
+            return _persist
+
+        persist_cb = _make_persist_cb(self)
 
         for fountain_cfg in fountains:
             mac: str = fountain_cfg.get("mac", "")
             name: str = fountain_cfg.get("name", mac)
             if not mac:
                 continue
+            cached_hex = secrets_cache.get(normalize_mac(mac) or mac)
+            cached_secret: list[int] | None = None
+            if cached_hex:
+                try:
+                    cached_secret = list(bytes.fromhex(cached_hex))
+                    if len(cached_secret) != 8:
+                        cached_secret = None
+                except ValueError:
+                    cached_secret = None
             try:
-                client = FountainBleClient(self.hass, mac, name, debug_log=debug_log)
+                client = FountainBleClient(
+                    self.hass,
+                    mac,
+                    name,
+                    debug_log=debug_log,
+                    cached_secret=cached_secret,
+                    secret_persist_cb=persist_cb,
+                    connect_grace_seconds=BLE_CONNECT_GRACE_SECONDS,
+                )
                 status = await client.async_get_status()
                 if status is None:
                     LOGGER.warning("No BLE status received from %s (%s)", name, mac)

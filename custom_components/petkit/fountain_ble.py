@@ -153,6 +153,16 @@ class LocalFountainBleProtocol:
         """True after a CMD 213 response has been successfully parsed."""
         return self._device_id_received
 
+    @property
+    def current_secret(self) -> list[int]:
+        """The 8-byte secret used for the most recent CMD 73/86 sequence.
+
+        Captured for the per-device BLE secret cache (``CONF_BLE_SECRETS``)
+        so subsequent local-BLE handshakes can reuse the value that the
+        device accepted, instead of re-deriving from CMD 213.
+        """
+        return list(self._secret)
+
     # ------------------------------------------------------------------
     # Command builders
     # ------------------------------------------------------------------
@@ -161,8 +171,16 @@ class LocalFountainBleProtocol:
         """Return the first command in the handshake (CMD 213 – device ID)."""
         return [self._build_frame(self._CMD_DEVICE_ID, 1, [0, 0])]
 
-    def complete_init_commands(self) -> list[bytearray]:
+    def complete_init_commands(
+        self, secret_override: list[int] | None = None
+    ) -> list[bytearray]:
         """Return auth (CMD 73), sync (CMD 86) and set-time (CMD 84) frames.
+
+        If *secret_override* is provided (8 bytes), it bypasses the per-model
+        derivation entirely. This lets a previously-captured per-device secret
+        (CMD 86 success → ``CONF_BLE_SECRETS``) be reused so the cloud-relay
+        session survives the local-BLE handshake (Jezza34000, PR #203 design
+        comment 2026-05-02).
 
         The CTW3 / Eversweet Max 2 auth always succeeds when the device_id used
         for the secret derivation is all-zeros, even if CMD 213 returned non-zero
@@ -183,18 +201,27 @@ class LocalFountainBleProtocol:
             device_id = self._device_id_bytes or [0] * 6
 
         device_id_padded = [0] * (8 - len(device_id)) + device_id
-        secret = list(reversed(device_id))
-        # Replace the last two bytes of the (unpadded) reversed ID with
-        # the magic constant [13, 37] when they are both zero.
-        if len(secret) >= 2 and secret[-1] == 0 and secret[-2] == 0:
-            secret[-2] = 13
-            secret[-1] = 37
-        self._secret = [0] * (8 - len(secret)) + secret
-        _LOGGER.debug(
-            "Auth: device_id=%s secret=%s",
-            bytes(device_id_padded).hex(),
-            bytes(self._secret).hex(),
-        )
+
+        if secret_override is not None and len(secret_override) == 8:
+            self._secret = list(secret_override)
+            _LOGGER.debug(
+                "Auth: device_id=%s secret=%s (cached)",
+                bytes(device_id_padded).hex(),
+                bytes(self._secret).hex(),
+            )
+        else:
+            secret = list(reversed(device_id))
+            # Replace the last two bytes of the (unpadded) reversed ID with
+            # the magic constant [13, 37] when they are both zero.
+            if len(secret) >= 2 and secret[-1] == 0 and secret[-2] == 0:
+                secret[-2] = 13
+                secret[-1] = 37
+            self._secret = [0] * (8 - len(secret)) + secret
+            _LOGGER.debug(
+                "Auth: device_id=%s secret=%s",
+                bytes(device_id_padded).hex(),
+                bytes(self._secret).hex(),
+            )
         cmds.append(
             self._build_frame(
                 self._CMD_AUTH, 1, [0, 0, *device_id_padded, *self._secret]
@@ -627,8 +654,25 @@ class FountainBleClient:
         device_name: str,
         *,
         debug_log: bool = False,
+        cached_secret: list[int] | None = None,
+        secret_persist_cb: Any | None = None,
+        connect_grace_seconds: float = 15.0,
     ) -> None:
-        """Initialize the BLE client for a specific fountain."""
+        """Initialize the BLE client for a specific fountain.
+
+        ``cached_secret`` (8 bytes), if supplied, is reused by the protocol
+        on the next handshake so a device that has already been paired by
+        the cloud relay keeps its session intact.
+
+        ``secret_persist_cb`` is an optional callable ``(mac, secret_hex)``
+        invoked after a successful CMD 86 so the caller can write the value
+        to ``entry.data[CONF_BLE_SECRETS]``. (Jezza34000 PR #203 design
+        comment 2026-05-02.)
+
+        ``connect_grace_seconds`` is the window during which we keep retrying
+        ``bluetooth.async_ble_device_from_address`` when it returns ``None``
+        (BLE adapter / proxy not yet ready). Defaults to 15 s.
+        """
         self.hass = hass
         self.mac_address = mac_address
         self.device_name = device_name
@@ -637,6 +681,15 @@ class FountainBleClient:
         self._client: BleakClient | None = None
         self._notification_event: asyncio.Event = asyncio.Event()
         self._last_status: dict[str, Any] | None = None
+        self._cached_secret: list[int] | None = (
+            list(cached_secret) if cached_secret and len(cached_secret) == 8 else None
+        )
+        self._secret_persist_cb = secret_persist_cb
+        self._connect_grace_seconds = connect_grace_seconds
+        # Per-fountain lock prevents simultaneous connect/handshake/poll/write
+        # from interleaving on the same physical device. (PR #203 polish port
+        # from aavdberg/ha-petkit v1.2.0.)
+        self._lock: asyncio.Lock = asyncio.Lock()
         # Attach/configure the log file based on the user's debug toggle.
         _setup_ble_log_file(hass.config.config_dir, debug_enabled=debug_log)
 
@@ -657,6 +710,10 @@ class FountainBleClient:
 
         Returns the parsed status dict, or None on failure.
         """
+        async with self._lock:
+            return await self._async_get_status_locked()
+
+    async def _async_get_status_locked(self) -> dict[str, Any] | None:
         try:
             await self._connect()
             await self._run_init_sequence()
@@ -794,45 +851,50 @@ class FountainBleClient:
 
     async def async_set_mode(self, power_state: int, mode: int) -> bool:
         """Connect, send a mode change command, disconnect."""
-        try:
-            await self._connect()
-            await self._run_init_sequence()
-            cmd = self._protocol.build_set_mode_command(power_state, mode)
-            await self._write(cmd)
-        except Exception as err:  # noqa: BLE001
-            _LOGGER.error("BLE set_mode failed for %s: %s", self.mac_address, err)
-            return False
-        finally:
-            await self._disconnect()
-        return True
+        async with self._lock:
+            try:
+                await self._connect()
+                await self._run_init_sequence()
+                cmd = self._protocol.build_set_mode_command(power_state, mode)
+                await self._write(cmd)
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.error("BLE set_mode failed for %s: %s", self.mac_address, err)
+                return False
+            finally:
+                await self._disconnect()
+            return True
 
     async def async_set_config(self, config_data: list[int]) -> bool:
         """Connect, send a config update command, disconnect."""
-        try:
-            await self._connect()
-            await self._run_init_sequence()
-            cmd = self._protocol.build_set_config_command(config_data)
-            await self._write(cmd)
-        except Exception as err:  # noqa: BLE001
-            _LOGGER.error("BLE set_config failed for %s: %s", self.mac_address, err)
-            return False
-        finally:
-            await self._disconnect()
-        return True
+        async with self._lock:
+            try:
+                await self._connect()
+                await self._run_init_sequence()
+                cmd = self._protocol.build_set_config_command(config_data)
+                await self._write(cmd)
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.error("BLE set_config failed for %s: %s", self.mac_address, err)
+                return False
+            finally:
+                await self._disconnect()
+            return True
 
     async def async_reset_filter(self) -> bool:
         """Connect, send filter reset command (CMD 222), disconnect."""
-        try:
-            await self._connect()
-            await self._run_init_sequence()
-            cmd = self._protocol.get_reset_filter_command()
-            await self._write(cmd)
-        except Exception as err:  # noqa: BLE001
-            _LOGGER.error("BLE reset_filter failed for %s: %s", self.mac_address, err)
-            return False
-        finally:
-            await self._disconnect()
-        return True
+        async with self._lock:
+            try:
+                await self._connect()
+                await self._run_init_sequence()
+                cmd = self._protocol.get_reset_filter_command()
+                await self._write(cmd)
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.error(
+                    "BLE reset_filter failed for %s: %s", self.mac_address, err
+                )
+                return False
+            finally:
+                await self._disconnect()
+            return True
 
     # -----------------------------------------------------------------------
     # Connection management
@@ -846,6 +908,25 @@ class FountainBleClient:
         ble_device = bluetooth.async_ble_device_from_address(
             self.hass, self.mac_address, connectable=True
         )
+        # 15 s grace window: HA proxies / USB adapters may not have advertised
+        # the device yet right after restart. Retry briefly before giving up.
+        # (Polish port from aavdberg/ha-petkit v1.2.0.)
+        if ble_device is None and self._connect_grace_seconds > 0:
+            grace_deadline = (
+                asyncio.get_running_loop().time() + self._connect_grace_seconds
+            )
+            _LOGGER.debug(
+                "BLE device %s not yet advertised — waiting up to %.0fs",
+                self.mac_address,
+                self._connect_grace_seconds,
+            )
+            while ble_device is None:
+                if asyncio.get_running_loop().time() >= grace_deadline:
+                    break
+                await asyncio.sleep(1.0)
+                ble_device = bluetooth.async_ble_device_from_address(
+                    self.hass, self.mac_address, connectable=True
+                )
         if ble_device is None:
             raise RuntimeError(
                 f"BLE device {self.mac_address} not found in HA scanner. "
@@ -993,7 +1074,10 @@ class FountainBleClient:
 
         # Step 2: Auth (CMD 73/86/84).  If the device disconnects mid-sequence,
         # catch the error and return — the caller will check _last_status.
-        for cmd in self._protocol.complete_init_commands():
+        auth_cmds = self._protocol.complete_init_commands(
+            secret_override=self._cached_secret
+        )
+        for cmd in auth_cmds:
             _LOGGER.debug("BLE sending init cmd to %s: %s", self.mac_address, cmd.hex())
             self._notification_event.clear()
             try:
@@ -1005,6 +1089,30 @@ class FountainBleClient:
                 )
                 return
             await asyncio.sleep(BLE_CMD_DELAY)
+
+        # Auth completed without write errors → persist the secret the device
+        # accepted so future BLE sessions reuse it instead of re-deriving from
+        # CMD 213 (preserves cloud-relay session). Jezza34000 PR #203 design.
+        if self._secret_persist_cb is not None:
+            try:
+                accepted = self._protocol.current_secret
+                if accepted and accepted != self._cached_secret:
+                    self._cached_secret = list(accepted)
+                    secret_hex = bytes(accepted).hex()
+                    _LOGGER.debug(
+                        "Caching BLE secret for %s: %s",
+                        self.mac_address,
+                        secret_hex,
+                    )
+                    res = self._secret_persist_cb(self.mac_address, secret_hex)
+                    if asyncio.iscoroutine(res):
+                        await res
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.debug(
+                    "BLE secret persist callback failed for %s: %s",
+                    self.mac_address,
+                    err,
+                )
 
     async def _read_full_status(self) -> dict[str, Any] | None:
         """Send CMD 230 and wait for the status notification.
