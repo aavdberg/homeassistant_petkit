@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from collections.abc import Mapping
+
 from pypetkitapi import (
     PetkitAuthenticationUnregisteredEmailError,
     PetKitClient,
@@ -39,10 +41,10 @@ from .const import (
     BT_SECTION,
     CODE_TO_COUNTRY_DICT,
     CONF_BLE_RELAY_ENABLED,
+    CONF_CONNECTION_MODE,
     CONF_DELETE_AFTER,
     CONF_ENABLED_NOTIFICATIONS,
     CONF_LOCAL_BLE_DEBUG,
-    CONF_LOCAL_BLE_ENABLED,
     CONF_LOCAL_BLE_FOUNTAINS,
     CONF_MEDIA_DL_IMAGE,
     CONF_MEDIA_DL_VIDEO,
@@ -50,15 +52,16 @@ from .const import (
     CONF_MEDIA_PATH,
     CONF_SCAN_INTERVAL_BLUETOOTH,
     CONF_SCAN_INTERVAL_MEDIA,
+    CONNECTION_MODES,
     COUNTRY_TO_CODE_DICT,
     DEFAULT_BLUETOOTH_RELAY,
+    DEFAULT_CONNECTION_MODE,
     DEFAULT_DELETE_AFTER,
     DEFAULT_DL_IMAGE,
     DEFAULT_DL_VIDEO,
     DEFAULT_ENABLED_NOTIFICATIONS,
     DEFAULT_EVENTS,
     DEFAULT_LOCAL_BLE_DEBUG,
-    DEFAULT_LOCAL_BLE_ENABLED,
     DEFAULT_MEDIA_PATH,
     DEFAULT_SCAN_INTERVAL_BLUETOOTH,
     DEFAULT_SCAN_INTERVAL_MEDIA,
@@ -69,6 +72,44 @@ from .const import (
     NOTIFICATION_CATEGORIES,
     NOTIFICATION_SECTION,
 )
+from .utils import normalize_mac, resolve_connection_mode
+
+_FOUNTAIN_ENTRY_SCHEMA = vol.Schema(
+    {
+        vol.Required("mac"): vol.All(str, vol.Length(min=12)),
+        vol.Optional("name", default=""): str,
+    },
+    extra=vol.ALLOW_EXTRA,
+)
+
+
+def _validate_fountain_list(value: Any) -> list[dict[str, Any]]:
+    """Voluptuous coercer for ``CONF_LOCAL_BLE_FOUNTAINS``.
+
+    Accepts a list of mappings with at least a ``mac`` key. Each MAC is
+    normalized (lowercase, no separators) so coordinator-side compare works
+    regardless of how the user typed it. Anything else raises ``vol.Invalid``
+    so HA shows a clear options error instead of failing silently at runtime
+    (Copilot review request, PR #203).
+    """
+    if value in (None, ""):
+        return []
+    if not isinstance(value, list):
+        raise vol.Invalid("Fountains must be a list of objects with a 'mac' key")
+    out: list[dict[str, Any]] = []
+    for idx, raw in enumerate(value):
+        if not isinstance(raw, Mapping):
+            raise vol.Invalid(f"Fountain entry #{idx + 1} must be an object")
+        item = _FOUNTAIN_ENTRY_SCHEMA(dict(raw))
+        normalized = normalize_mac(item["mac"])
+        if len(normalized) != 12:
+            raise vol.Invalid(
+                f"Fountain entry #{idx + 1}: MAC '{item['mac']}' is not a valid"
+                " 12-hex-digit address"
+            )
+        item["mac"] = normalized
+        out.append(item)
+    return out
 
 
 class PetkitOptionsFlowHandler(OptionsFlow):
@@ -174,20 +215,26 @@ class PetkitOptionsFlowHandler(OptionsFlow):
                         vol.Schema(
                             {
                                 vol.Required(
-                                    CONF_LOCAL_BLE_ENABLED,
-                                    default=self.config_entry.options.get(
-                                        LOCAL_BLE_SECTION, {}
-                                    ).get(
-                                        CONF_LOCAL_BLE_ENABLED,
-                                        DEFAULT_LOCAL_BLE_ENABLED,
+                                    CONF_CONNECTION_MODE,
+                                    default=resolve_connection_mode(
+                                        self.config_entry.options
                                     ),
-                                ): BooleanSelector(BooleanSelectorConfig()),
+                                ): selector.SelectSelector(
+                                    selector.SelectSelectorConfig(
+                                        mode=selector.SelectSelectorMode.DROPDOWN,
+                                        translation_key="petkit_connection_mode",
+                                        options=list(CONNECTION_MODES),
+                                    )
+                                ),
                                 vol.Optional(
                                     CONF_LOCAL_BLE_FOUNTAINS,
                                     default=self.config_entry.options.get(
                                         LOCAL_BLE_SECTION, {}
                                     ).get(CONF_LOCAL_BLE_FOUNTAINS, []),
-                                ): selector.ObjectSelector(),
+                                ): vol.All(
+                                    selector.ObjectSelector(),
+                                    _validate_fountain_list,
+                                ),
                                 vol.Required(
                                     CONF_LOCAL_BLE_DEBUG,
                                     default=self.config_entry.options.get(
@@ -232,7 +279,7 @@ class PetkitOptionsFlowHandler(OptionsFlow):
 class PetkitFlowHandler(ConfigFlow, domain=DOMAIN):
     """Config flow for Petkit Smart Devices."""
 
-    VERSION = 8
+    VERSION = 9
 
     @staticmethod
     @callback
@@ -305,7 +352,7 @@ class PetkitFlowHandler(ConfigFlow, domain=DOMAIN):
                                 CONF_SCAN_INTERVAL_BLUETOOTH: DEFAULT_SCAN_INTERVAL_BLUETOOTH,
                             },
                             LOCAL_BLE_SECTION: {
-                                CONF_LOCAL_BLE_ENABLED: DEFAULT_LOCAL_BLE_ENABLED,
+                                CONF_CONNECTION_MODE: DEFAULT_CONNECTION_MODE,
                                 CONF_LOCAL_BLE_FOUNTAINS: [],
                                 CONF_LOCAL_BLE_DEBUG: DEFAULT_LOCAL_BLE_DEBUG,
                             },
